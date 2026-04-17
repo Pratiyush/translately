@@ -8,7 +8,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ---------- native build stage ----------
-FROM ghcr.io/graalvm/native-image-community:21 AS build
+FROM ghcr.io/graalvm/native-image-community:25 AS build
 WORKDIR /workspace
 
 RUN microdnf install -y findutils \
