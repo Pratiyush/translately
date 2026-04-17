@@ -11,8 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **ULID generator** (`io.translately.data.Ulid`) — Crockford-base32, 26 chars, monotonic within a single millisecond batch.
 - 47 Kotest tests covering ULID properties, email normalization, slug normalization, verification status, AI-flag logic, token active/expired/revoked semantics, and entity defaults.
 
+- **Flyway V1 migration** (`backend/data/src/main/resources/db/migration/V1__auth_and_orgs.sql`) — 7 tables (`users`, `organizations`, `organization_members`, `projects`, `project_languages`, `api_keys`, `personal_access_tokens`), matching FK/unique/check constraints, indexes on hot lookups, `ON DELETE CASCADE` on every child FK. `CHECK` constraints enforce `OrganizationRole`, `LanguageDirection`, `AiProvider` enums and non-negative AI budget.
+- Integration test (`MigrationV1Test`, Kotest `DescribeSpec` + Testcontainers Postgres 16-alpine) applies the migration and asserts table shape, unique constraints, cascade deletes, and all three `CHECK` constraint violations surface as SQL errors.
+
 ### Infrastructure
 - Convention plugin `translately.quarkus-module` now adds `jakarta.persistence.Entity` / `MappedSuperclass` / `Embeddable` to the `kotlin-allopen` annotation set so entity classes are non-final (required by Hibernate proxies).
+- `:backend:data` gains `testcontainers-postgresql` + `testcontainers-junit` on the test classpath.
 
 ## [0.0.1] — 2026-04-17 — Phase 0: Bootstrap
 
