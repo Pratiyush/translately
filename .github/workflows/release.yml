@@ -56,7 +56,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Build fast-jar
         run: ./gradlew :backend:app:build -x test --no-daemon
