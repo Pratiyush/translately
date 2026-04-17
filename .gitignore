@@ -50,3 +50,6 @@ core.*.dmp
 javacore.*.txt
 Snap.*.trc
 hs_err_pid*.log
+
+# Kotlin build cache
+.kotlin/
