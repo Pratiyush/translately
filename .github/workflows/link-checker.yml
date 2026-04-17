@@ -39,7 +39,6 @@ jobs:
             --verbose
             --no-progress
             --exclude-path _reference
-            --exclude-mail
             --timeout 20
             --retry-wait-time 2
             --max-retries 3
