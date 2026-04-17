@@ -87,4 +87,13 @@ Docs-only PRs still require link-checker green.
 
 - Every changed line read. No rubber-stamping.
 - At least one concrete improvement suggested OR an explicit "LGTM: nothing to add".
-- Block on: missing tests, missing migration, missing changelog entry, unsigned commits, co-author trailers, license violations, security smells.
+- Block on: missing tests, missing migration, missing changelog entry, unsigned commits, co-author trailers, license violations, security smells, **`docs/` page out of sync with the product**.
+
+## Keep GitHub Pages live
+
+The canonical docs live at <https://pratiyush.github.io/translately/>, served from the repo's `docs/` directory by the `pages.yml` workflow (deploys on every push to `master`).
+
+- **Same-PR rule.** When a user-visible feature, flow, config knob, or API surface changes, update the matching page under `docs/` in the **same** PR. The 14-point PR checklist treats out-of-date docs as a blocker.
+- **Tag-gate rule.** Before pushing a signed `v0.X.Y` tag, skim the live Pages site and confirm it reflects the release contents; note any stale page in the release retrospective.
+- **Phase end.** Each phase retrospective explicitly checks that the roadmap, quickstart, and any newly-shipped pages are reachable and current on the live site.
+- **Empty pages rule.** A page that promises content we haven't shipped yet must carry a "placeholder — full content ships in vX.Y.Z" banner, not silently 404 or mislead.
