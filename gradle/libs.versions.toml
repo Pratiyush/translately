@@ -7,7 +7,7 @@
 [versions]
 # JVM toolchain
 java = "21"
-kotlin = "2.1.0"
+kotlin = "2.3.20"
 
 # Quarkus platform & BOM
 quarkus = "3.17.4"
