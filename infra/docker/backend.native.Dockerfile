@@ -24,7 +24,7 @@ RUN ./gradlew :backend:app:build -Dquarkus.package.type=native \
         -x test --no-daemon --stacktrace
 
 # ---------- runtime stage ----------
-FROM debian:12-slim AS runtime
+FROM debian:13-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update \
