@@ -1,0 +1,138 @@
+# Translately — local development stack
+#
+# Usage:
+#   docker compose up -d                          # core services
+#   docker compose --profile keycloak up -d       # add Keycloak (OIDC testing)
+#   docker compose down                           # stop; volumes preserved
+#   docker compose down -v                        # stop AND wipe data
+#
+# Service URLs (dev):
+#   Postgres   → postgres://translately:translately@localhost:5432/translately
+#   Redis      → redis://localhost:6379
+#   MinIO API  → http://localhost:9000  (user: translately / pass: translately-dev)
+#   MinIO UI   → http://localhost:9001
+#   Mailpit UI → http://localhost:8025  (SMTP: localhost:1025, no auth)
+#   Keycloak   → http://localhost:8180  (admin: admin / admin)  [profile: keycloak]
+
+name: translately
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: translately-postgres
+    environment:
+      POSTGRES_USER: translately
+      POSTGRES_PASSWORD: translately
+      POSTGRES_DB: translately
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U translately -d translately"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: translately-redis
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: translately-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: translately
+      MINIO_ROOT_PASSWORD: translately-dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: translately-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set local http://minio:9000 translately translately-dev;
+      /usr/bin/mc mb --ignore-existing local/translately-screenshots;
+      /usr/bin/mc mb --ignore-existing local/translately-cdn;
+      /usr/bin/mc mb --ignore-existing local/translately-imports;
+      /usr/bin/mc anonymous set download local/translately-cdn;
+      echo 'MinIO buckets ready';
+      exit 0;
+      "
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: translately-mailpit
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+      MP_MAX_MESSAGES: "500"
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025/livez"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Optional: Keycloak for OIDC/SSO testing. Enable with `--profile keycloak`.
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: translately-keycloak
+    profiles: ["keycloak"]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: translately
+      KC_DB_PASSWORD: translately
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./infra/keycloak/realms:/opt/keycloak/data/import:ro
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  mailpit-data:

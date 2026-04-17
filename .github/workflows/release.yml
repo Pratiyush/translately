@@ -1,0 +1,227 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify signed tag + extract version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      is_prerelease: ${{ steps.v.outputs.is_prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: v
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "${VERSION}" == 0.* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify tag is GPG-signed
+        run: |
+          if ! git tag -v "${GITHUB_REF#refs/tags/}" 2>&1 | grep -q 'Good signature\|gpg: Signature made'; then
+            echo "::warning::Tag signature not verifiable on CI. Ensure GPG pubkey is uploaded to GitHub and the tag is signed with that key."
+          fi
+
+  build-backend:
+    name: build backend
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build fast-jar
+        run: ./gradlew :backend:app:build -x test --no-daemon
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-fastjar-${{ needs.verify.outputs.version }}
+          path: backend/app/build/quarkus-app/
+          retention-days: 30
+
+  build-webapp:
+    name: build webapp
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: check
+        run: |
+          if [ -f webapp/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.check.outputs.present == 'true'
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - if: steps.check.outputs.present == 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @translately/webapp build
+
+      - if: steps.check.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-bundle-${{ needs.verify.outputs.version }}
+          path: webapp/dist/
+          retention-days: 30
+
+  docker:
+    name: build + push images
+    needs: [verify, build-backend, build-webapp]
+    if: ${{ needs.verify.outputs.version != '0.0.1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backend image (JVM)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/backend.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/pratiyush/translately-backend:${{ needs.verify.outputs.version }}
+            ghcr.io/pratiyush/translately-backend:latest
+          provenance: mode=max
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.verify.outputs.version }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Webapp image
+        if: hashFiles('webapp/package.json') != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/webapp.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/pratiyush/translately-webapp:${{ needs.verify.outputs.version }}
+            ghcr.io/pratiyush/translately-webapp:latest
+          provenance: mode=max
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.verify.outputs.version }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign images (keyless)
+        env:
+          COSIGN_YES: "true"
+        run: |
+          cosign sign "ghcr.io/pratiyush/translately-backend:${{ needs.verify.outputs.version }}"
+          if [ -f webapp/package.json ]; then
+            cosign sign "ghcr.io/pratiyush/translately-webapp:${{ needs.verify.outputs.version }}"
+          fi
+
+  release:
+    name: GitHub Release
+    needs: [verify, build-backend, build-webapp]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract release notes
+        id: notes
+        run: |
+          VERSION="${{ needs.verify.outputs.version }}"
+          # Pull the matching section from CHANGELOG.md. Fallback to a stub if not found.
+          awk -v ver="[${VERSION}]" '
+            $0 ~ "^## " ver { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            printf "Release %s — see CHANGELOG.md for full details.\n" "${VERSION}" > release-notes.md
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-${{ needs.verify.outputs.version }}'
+          path: ./release-artifacts
+
+      - name: Package backend fast-jar
+        run: |
+          if [ -d release-artifacts/backend-fastjar-${{ needs.verify.outputs.version }} ]; then
+            tar -C release-artifacts/backend-fastjar-${{ needs.verify.outputs.version }} \
+                -czf translately-backend-${{ needs.verify.outputs.version }}.tar.gz .
+          fi
+          if [ -d release-artifacts/webapp-bundle-${{ needs.verify.outputs.version }} ]; then
+            tar -C release-artifacts/webapp-bundle-${{ needs.verify.outputs.version }} \
+                -czf translately-webapp-${{ needs.verify.outputs.version }}.tar.gz .
+          fi
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.verify.outputs.version }}
+          name: v${{ needs.verify.outputs.version }}
+          body_path: release-notes.md
+          prerelease: ${{ needs.verify.outputs.is_prerelease }}
+          generate_release_notes: false
+          files: |
+            translately-backend-${{ needs.verify.outputs.version }}.tar.gz
+            translately-webapp-${{ needs.verify.outputs.version }}.tar.gz

@@ -1,0 +1,112 @@
+#
+# Translately version catalog.
+# Everything consumed from Maven Central and the Gradle plugin portal lives here.
+# Keep sorted alphabetically within each section.
+#
+
+[versions]
+# JVM toolchain
+java = "21"
+kotlin = "2.1.0"
+
+# Quarkus platform & BOM
+quarkus = "3.17.4"
+
+# Gradle plugins
+ktlint-plugin = "12.1.1"
+detekt = "1.23.7"
+
+# Testing
+archunit = "1.3.0"
+kotest = "5.9.1"
+mockk = "1.13.13"
+testcontainers = "1.20.4"
+
+# Libraries (non-Quarkus)
+argon2 = "2.11"
+awssdk-bom = "2.29.20"
+icu4j = "76.1"
+jackson-bom = "2.18.1"
+
+# Reporting
+jacoco = "0.8.12"
+
+[plugins]
+kotlin-jvm      = { id = "org.jetbrains.kotlin.jvm",           version.ref = "kotlin" }
+kotlin-allopen  = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
+kotlin-noarg    = { id = "org.jetbrains.kotlin.plugin.noarg",   version.ref = "kotlin" }
+ktlint          = { id = "org.jlleitschuh.gradle.ktlint",       version.ref = "ktlint-plugin" }
+detekt          = { id = "io.gitlab.arturbosch.detekt",         version.ref = "detekt" }
+quarkus         = { id = "io.quarkus",                          version.ref = "quarkus" }
+
+[libraries]
+# ---- Quarkus platform ----
+quarkus-bom = { module = "io.quarkus.platform:quarkus-bom", version.ref = "quarkus" }
+
+# Core / DI / REST / config
+quarkus-core                        = { module = "io.quarkus:quarkus-core" }
+quarkus-arc                         = { module = "io.quarkus:quarkus-arc" }
+quarkus-kotlin                      = { module = "io.quarkus:quarkus-kotlin" }
+quarkus-config-yaml                 = { module = "io.quarkus:quarkus-config-yaml" }
+quarkus-rest                        = { module = "io.quarkus:quarkus-rest" }
+quarkus-rest-jackson                = { module = "io.quarkus:quarkus-rest-jackson" }
+quarkus-smallrye-openapi            = { module = "io.quarkus:quarkus-smallrye-openapi" }
+quarkus-smallrye-health             = { module = "io.quarkus:quarkus-smallrye-health" }
+quarkus-logging-json                = { module = "io.quarkus:quarkus-logging-json" }
+quarkus-micrometer-prometheus       = { module = "io.quarkus:quarkus-micrometer-registry-prometheus" }
+quarkus-opentelemetry               = { module = "io.quarkus:quarkus-opentelemetry" }
+
+# Security
+quarkus-smallrye-jwt                = { module = "io.quarkus:quarkus-smallrye-jwt" }
+quarkus-smallrye-jwt-build          = { module = "io.quarkus:quarkus-smallrye-jwt-build" }
+quarkus-oidc                        = { module = "io.quarkus:quarkus-oidc" }
+quarkus-elytron-security-ldap       = { module = "io.quarkus:quarkus-elytron-security-ldap" }
+
+# Data
+quarkus-hibernate-orm-panache-kotlin = { module = "io.quarkus:quarkus-hibernate-orm-panache-kotlin" }
+quarkus-jdbc-postgresql              = { module = "io.quarkus:quarkus-jdbc-postgresql" }
+quarkus-flyway                       = { module = "io.quarkus:quarkus-flyway" }
+
+# Cache / queue / jobs
+quarkus-redis-client                 = { module = "io.quarkus:quarkus-redis-client" }
+quarkus-quartz                       = { module = "io.quarkus:quarkus-quartz" }
+
+# Mail
+quarkus-mailer                       = { module = "io.quarkus:quarkus-mailer" }
+quarkus-qute                         = { module = "io.quarkus:quarkus-qute" }
+
+# Object storage (AWS S3 via Quarkiverse)
+quarkus-amazon-s3                    = { module = "io.quarkiverse.amazonservices:quarkus-amazon-s3", version = "2.11.0" }
+awssdk-bom                           = { module = "software.amazon.awssdk:bom", version.ref = "awssdk-bom" }
+
+# Test extensions (Quarkus-aware)
+quarkus-junit5                       = { module = "io.quarkus:quarkus-junit5" }
+quarkus-junit5-mockito               = { module = "io.quarkus:quarkus-junit5-mockito" }
+quarkus-test-security                = { module = "io.quarkus:quarkus-test-security" }
+
+# ---- Non-Quarkus libraries ----
+icu4j                                = { module = "com.ibm.icu:icu4j", version.ref = "icu4j" }
+argon2                               = { module = "de.mkammerer:argon2-jvm", version.ref = "argon2" }
+
+# ---- Testing ----
+kotest-runner-junit5                 = { module = "io.kotest:kotest-runner-junit5",     version.ref = "kotest" }
+kotest-assertions-core               = { module = "io.kotest:kotest-assertions-core",   version.ref = "kotest" }
+kotest-property                      = { module = "io.kotest:kotest-property",          version.ref = "kotest" }
+mockk                                = { module = "io.mockk:mockk",                     version.ref = "mockk" }
+archunit-junit5                      = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+testcontainers-bom                   = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-postgresql            = { module = "org.testcontainers:postgresql" }
+testcontainers-minio                 = { module = "org.testcontainers:minio" }
+testcontainers-junit                 = { module = "org.testcontainers:junit-jupiter" }
+
+# ---- Gradle plugin artifacts (buildSrc classpath) ----
+plugin-kotlin                        = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin",       version.ref = "kotlin" }
+plugin-kotlin-allopen                = { module = "org.jetbrains.kotlin:kotlin-allopen",             version.ref = "kotlin" }
+plugin-kotlin-noarg                  = { module = "org.jetbrains.kotlin:kotlin-noarg",               version.ref = "kotlin" }
+plugin-ktlint                        = { module = "org.jlleitschuh.gradle:ktlint-gradle",            version.ref = "ktlint-plugin" }
+plugin-detekt                        = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+plugin-quarkus                       = { module = "io.quarkus:gradle-application-plugin",            version.ref = "quarkus" }
+
+[bundles]
+kotest         = ["kotest-runner-junit5", "kotest-assertions-core", "kotest-property"]
+testcontainers = ["testcontainers-postgresql", "testcontainers-junit"]

@@ -1,0 +1,80 @@
+name: ci-webapp
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'webapp/**'
+      - '.github/workflows/ci-webapp.yml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - 'webapp/**'
+      - '.github/workflows/ci-webapp.yml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+
+concurrency:
+  group: ci-webapp-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: detect webapp presence
+    runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          if [ -f webapp/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: lint + test + build
+    needs: guard
+    if: needs.guard.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter @translately/webapp lint
+
+      - name: Test
+        run: pnpm --filter @translately/webapp test -- --run
+
+      - name: Build
+        run: pnpm --filter @translately/webapp build
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: webapp-bundle
+          path: webapp/dist/
+          retention-days: 14

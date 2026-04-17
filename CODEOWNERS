@@ -1,0 +1,42 @@
+# CODEOWNERS — Translately
+# https://docs.github.com/en/repositories/managing-your-repositories-settings-and-security/customizing-your-repository/about-code-owners
+#
+# Owners are automatically requested for review on every PR that touches matching paths.
+# The last matching pattern wins. Keep this file small; prefer path-scoped ownership
+# only when a sub-area needs a specific reviewer set.
+
+# Default — everything
+*                               @Pratiyush
+
+# Backend
+/backend/                       @Pratiyush
+/backend/security/              @Pratiyush
+/backend/ai/                    @Pratiyush
+/backend/mt/                    @Pratiyush
+
+# Webapp
+/webapp/                        @Pratiyush
+
+# SDKs & CLI
+/sdks/                          @Pratiyush
+/cli/                           @Pratiyush
+
+# Infra, CI, release
+/infra/                         @Pratiyush
+/.github/                       @Pratiyush
+/docker-compose.yml             @Pratiyush
+
+# Docs
+/docs/                          @Pratiyush
+/README.md                      @Pratiyush
+/CONTRIBUTING.md                @Pratiyush
+/CODE_OF_CONDUCT.md             @Pratiyush
+/SECURITY.md                    @Pratiyush
+/CHANGELOG.md                   @Pratiyush
+/RELEASE-NOTES.md               @Pratiyush
+
+# Steering — AI-pair-programming context
+/.kiro/steering/                @Pratiyush
+/CLAUDE.md                      @Pratiyush
+/AGENTS.md                      @Pratiyush
+/.claude/                       @Pratiyush

@@ -1,0 +1,115 @@
+# Translately — opinionated production docker compose.
+#
+# For small/medium self-hosters. Brings up the backend, webapp, Postgres, Redis,
+# and MinIO on a single host behind a reverse proxy of your choice (Caddy,
+# Traefik, nginx). Backups, TLS, and monitoring are your responsibility.
+#
+# Usage:
+#   cp .env.prod.example .env.prod
+#   # ...edit secrets...
+#   docker compose -f infra/compose-prod.yml --env-file .env.prod up -d
+#
+# For anything beyond a single node, use the Helm chart (Phase 7) or roll your
+# own orchestration. This file is intentionally simple.
+
+name: translately
+
+services:
+  backend:
+    image: ghcr.io/pratiyush/translately-backend:${TRANSLATELY_VERSION:-latest}
+    container_name: translately-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/translately
+      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER:-translately}
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      QUARKUS_REDIS_HOSTS: redis://redis:6379
+      TRANSLATELY_STORAGE_S3_ENDPOINT: http://minio:9000
+      TRANSLATELY_STORAGE_S3_REGION: ${S3_REGION:-us-east-1}
+      TRANSLATELY_STORAGE_S3_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      TRANSLATELY_STORAGE_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      TRANSLATELY_MAIL_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      TRANSLATELY_MAIL_PORT: ${SMTP_PORT:-587}
+      TRANSLATELY_MAIL_USERNAME: ${SMTP_USERNAME:?SMTP_USERNAME is required}
+      TRANSLATELY_MAIL_PASSWORD: ${SMTP_PASSWORD:?SMTP_PASSWORD is required}
+      TRANSLATELY_MAIL_FROM: ${MAIL_FROM:-no-reply@translately.local}
+      TRANSLATELY_AUTH_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      TRANSLATELY_CRYPTO_MASTER_KEY: ${CRYPTO_MASTER_KEY:?CRYPTO_MASTER_KEY is required (32-byte base64)}
+      QUARKUS_LOG_LEVEL: INFO
+      QUARKUS_HTTP_HOST: 0.0.0.0
+      QUARKUS_HTTP_PORT: 8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/q/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  webapp:
+    image: ghcr.io/pratiyush/translately-webapp:${TRANSLATELY_VERSION:-latest}
+    container_name: translately-webapp
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8081:8080"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: translately-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-translately}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-translately}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: translately-redis
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: translately-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

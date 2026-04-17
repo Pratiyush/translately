@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Translately — open-source localization &amp; translation management</title>
+<meta name="description" content="Self-hosted, MIT-licensed localization platform. Bring-your-own-key AI. No paywalled premium tier.">
+<meta name="color-scheme" content="light dark">
+<style>
+:root {
+  --bg: #0a0a0b;
+  --fg: #f5f5f5;
+  --muted: #8a8a94;
+  --accent: #4f46e5;
+  --card: #16161a;
+  --border: #2a2a32;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg:#fafafa; --fg:#16161a; --muted:#6a6a74; --accent:#4f46e5; --card:#ffffff; --border:#e4e4e7; }
+}
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif; line-height:1.55; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 3.5rem 1.5rem 5rem; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 0 0 .5rem; letter-spacing:-0.02em; }
+.tag { color: var(--muted); font-size: 1.1rem; margin-bottom: 2rem; }
+.badges a img { vertical-align: middle; margin-right: .25rem; }
+.grid { display:grid; gap:1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 2rem 0; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+.card h3 { margin: 0 0 .5rem; font-size: 1.05rem; }
+.card p { margin: 0; color: var(--muted); font-size: .95rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace; }
+pre { background: var(--card); border:1px solid var(--border); padding: 1rem; border-radius: 10px; overflow-x:auto; font-size:.9rem; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+footer { color: var(--muted); font-size:.9rem; }
+ul.phases { list-style: none; padding: 0; display:grid; gap:.4rem; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); }
+ul.phases li { background: var(--card); border:1px solid var(--border); padding:.6rem .8rem; border-radius:8px; font-size:.92rem; }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<h1>Translately</h1>
+<p class="tag">Self-hosted localization &amp; translation management — MIT, bring-your-own-key AI, no paywalled tier.</p>
+
+<p class="badges">
+  <a href="https://github.com/Pratiyush/translately/blob/master/LICENSE"><img alt="MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+  <img alt="status" src="https://img.shields.io/badge/status-pre--alpha-red.svg">
+  <img alt="phase" src="https://img.shields.io/badge/phase-0%20bootstrap-blue.svg">
+</p>
+
+<p>Translately is an open-source platform for managing translation keys, ICU messages, and localization workflows across teams and repos. Every capability — SSO, SAML, LDAP, tasks, branching, glossaries, webhooks, custom storage, granular permissions, audit logs — ships free under MIT. AI suggestions are entirely optional and use <em>your</em> key (Anthropic Claude, OpenAI, OpenAI-compatible local LLMs, DeepL, Google, AWS) per project.</p>
+
+<div class="grid">
+  <div class="card"><h3>MIT, no gated tier</h3><p>Every feature is MIT. No paid add-ons. No license key. No phone-home.</p></div>
+  <div class="card"><h3>Bring your own AI</h3><p>Per-project provider &amp; key, encrypted at rest. Platform works fully with zero AI configured.</p></div>
+  <div class="card"><h3>Quarkus, ~1s start</h3><p>Low-memory self-host friendly. Native image under 50&nbsp;ms for the "zero-cost" deploy shape.</p></div>
+  <div class="card"><h3>ICU from day one</h3><p>Native ICU MessageFormat parsing, CLDR plurals, CodeMirror 6 editor with inline validation.</p></div>
+  <div class="card"><h3>Keyboard-first UI</h3><p>Light + dark, ⌘K command palette, full keyboard nav, WCAG 2.1 AA.</p></div>
+  <div class="card"><h3>Open standards</h3><p>ICU, CLDR, OpenAPI 3, Conventional Commits, Keep a Changelog, SemVer.</p></div>
+</div>
+
+<hr>
+
+<h2>Roadmap</h2>
+<ul class="phases">
+<li><strong>Phase 0</strong> · v0.0.1 · Bootstrap — repo, CI, docker-compose</li>
+<li><strong>Phase 1</strong> · v0.1.0 · Auth + Org/Project skeleton</li>
+<li><strong>Phase 2</strong> · v0.2.0 · Keys + Translations + ICU</li>
+<li><strong>Phase 3</strong> · v0.3.0 · JSON import/export (<em>first MVP</em>)</li>
+<li><strong>Phase 4</strong> · v0.4.0 · AI/MT (BYOK) + Translation Memory</li>
+<li><strong>Phase 5</strong> · v0.5.0 · Screenshots + JS SDK + in-context editor</li>
+<li><strong>Phase 6</strong> · v0.6.0 · Webhooks + CDN + CLI + Glossaries</li>
+<li><strong>Phase 7</strong> · v1.0.0 · Tasks + Branching + SSO/SAML/LDAP + Audit + Polish</li>
+</ul>
+
+<hr>
+
+<h2>Getting started</h2>
+
+<pre><code>git clone https://github.com/Pratiyush/translately.git
+cd translately
+docker compose up -d                          # postgres, redis, minio, mailpit
+./gradlew :backend:app:quarkusDev             # backend on :8080
+cd webapp &amp;&amp; pnpm install &amp;&amp; pnpm dev         # webapp on :5173</code></pre>
+
+<hr>
+
+<h2>Links</h2>
+<ul>
+<li><a href="https://github.com/Pratiyush/translately">Repository</a></li>
+<li><a href="https://github.com/Pratiyush/translately/issues">Issue tracker</a></li>
+<li><a href="https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md">Changelog</a></li>
+<li><a href="https://github.com/Pratiyush/translately/blob/master/RELEASE-NOTES.md">Release notes</a></li>
+<li><a href="https://github.com/Pratiyush/translately/security/advisories/new">Report a security issue</a></li>
+</ul>
+
+<footer>Made with care by <a href="https://github.com/Pratiyush">Pratiyush</a>. MIT-licensed.</footer>
+
+</main>
+</body>
+</html>

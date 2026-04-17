@@ -1,0 +1,57 @@
+name: link-checker
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/workflows/link-checker.yml'
+  pull_request:
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/workflows/link-checker.yml'
+  schedule:
+    - cron: '13 6 * * 1'   # every Monday 06:13 UTC
+
+concurrency:
+  group: link-checker-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  lychee:
+    name: lychee
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --verbose
+            --no-progress
+            --exclude-path _reference
+            --exclude-mail
+            --timeout 20
+            --retry-wait-time 2
+            --max-retries 3
+            './**/*.md' 'docs/**/*.html'
+          fail: true
+          format: markdown
+          output: ./lychee-report.md
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lychee-report
+          path: ./lychee-report.md
+          retention-days: 14

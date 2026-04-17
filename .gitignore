@@ -1,0 +1,40 @@
+# Third-party reference sources (read-only mirror, never committed)
+_reference/
+
+# Build
+build/
+target/
+.gradle/
+node_modules/
+dist/
+.next/
+.vite/
+.turbo/
+
+# Local
+.env
+.env.*
+!.env.*.example
+*.log
+.DS_Store
+.idea/
+.vscode/settings.json
+
+# Test
+coverage/
+test-results/
+playwright-report/
+
+# Quarkus
+quarkus-app/
+*.jar
+.quarkus/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Secrets
+*.pem
+*.key
+secrets/
+
+# Per-user Claude harness settings (keep `.claude/commands/`, skip local settings)
+.claude/settings.local.json

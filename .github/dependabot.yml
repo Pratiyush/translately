@@ -1,0 +1,116 @@
+version: 2
+updates:
+  # ---- Backend ----
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    labels:
+      - "type:chore"
+      - "scope:backend"
+    commit-message:
+      prefix: "chore(backend)"
+      include: scope
+    groups:
+      quarkus:
+        patterns: ["io.quarkus:*", "io.quarkiverse.*:*"]
+      kotlin:
+        patterns: ["org.jetbrains.kotlin:*"]
+      testing:
+        patterns: ["io.kotest:*", "org.testcontainers:*", "io.mockk:*"]
+
+  # ---- Webapp ----
+  - package-ecosystem: npm
+    directory: "/webapp"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    labels:
+      - "type:chore"
+      - "scope:webapp"
+    commit-message:
+      prefix: "chore(webapp)"
+      include: scope
+    groups:
+      react:
+        patterns: ["react", "react-dom", "@types/react*"]
+      tanstack:
+        patterns: ["@tanstack/*"]
+      radix:
+        patterns: ["@radix-ui/*"]
+      testing:
+        patterns: ["vitest", "@vitest/*", "@playwright/*", "axe-core"]
+
+  # ---- SDKs ----
+  - package-ecosystem: npm
+    directory: "/sdks/js"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - "type:chore"
+      - "scope:sdk-js"
+    commit-message:
+      prefix: "chore(sdk-js)"
+      include: scope
+
+  - package-ecosystem: npm
+    directory: "/sdks/react"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - "type:chore"
+      - "scope:sdk-js"
+    commit-message:
+      prefix: "chore(sdk-js)"
+      include: scope
+
+  # ---- CLI ----
+  - package-ecosystem: npm
+    directory: "/cli"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - "type:chore"
+      - "scope:cli"
+    commit-message:
+      prefix: "chore(cli)"
+      include: scope
+
+  # ---- GitHub Actions ----
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 3
+    labels:
+      - "type:chore"
+      - "scope:infra"
+    commit-message:
+      prefix: "chore(infra)"
+      include: scope
+
+  # ---- Docker ----
+  - package-ecosystem: docker
+    directory: "/infra/docker"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - "type:chore"
+      - "scope:infra"
+    commit-message:
+      prefix: "chore(infra)"
+      include: scope

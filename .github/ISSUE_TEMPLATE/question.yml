@@ -1,0 +1,35 @@
+name: Question / usage help
+description: Ask how to use, configure, or integrate Translately
+title: "[question] "
+labels: ["type:docs"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For usage questions, check the [README](../../README.md) and [CONTRIBUTING](../../CONTRIBUTING.md) first. If those don't cover it, file here.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What did you already try?
+
+  - type: input
+    id: version
+    attributes:
+      label: Translately version
+      placeholder: "v0.1.0 or 4f3a2b1"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
