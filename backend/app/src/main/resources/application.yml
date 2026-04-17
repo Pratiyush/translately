@@ -2,6 +2,22 @@
 # Profiles: default, %dev, %test, %prod.
 # Secrets come from env vars in production — never commit real credentials.
 
+# ---- Translately app config ---------------------------------------------
+#
+# Master key (KEK) for envelope-encrypting per-project secrets (AI API keys,
+# later PATs if we ever store plaintext). Must decode to 32 bytes.
+#
+# DEV/TEST default below is a fixed zero-byte-derived value. It is NOT a
+# secret and MUST NOT be used in production — the %prod profile requires
+# TRANSLATELY_CRYPTO_MASTER_KEY to be set in the environment.
+#
+# Generate a real key with:
+#   openssl rand -base64 32
+translately:
+  crypto:
+    # 32 bytes: 0x00..0x1F — clearly a dev placeholder, not a secret.
+    master-key: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+
 quarkus:
   application:
     name: translately
@@ -93,6 +109,12 @@ quarkus:
 
 # -----------------------------------------------------------------------------
 "%prod":
+  # Prod MUST provide a real master key. If the env var is missing the app
+  # fails to start (Quarkus config resolution will throw on the unresolved
+  # expression below rather than silently reuse the dev placeholder).
+  translately:
+    crypto:
+      master-key: ${TRANSLATELY_CRYPTO_MASTER_KEY}
   quarkus:
     log:
       level: INFO
