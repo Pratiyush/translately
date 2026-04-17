@@ -6,30 +6,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Added
-- Quarkus application bootstraps cleanly with liveness/readiness/started probes under `/q/health*`, aggregate health at `/q/health`, OpenAPI at `/q/openapi`, and Swagger UI at `/q/swagger-ui`.
-- `GET /` service metadata endpoint returning name, version, and well-known endpoint paths.
-- Runtime config in `backend/app/src/main/resources/application.yml` with `default`, `%dev`, `%test`, `%prod` profiles.
-- CDI bean discovery via `META-INF/beans.xml` in every backend module so resources declared in sibling modules are discovered.
-- Test coverage for health probes, index endpoint, and OpenAPI reachability (`HealthAndIndexIT`, 6 tests).
+_Nothing yet._
 
-### Infrastructure
-- Elytron LDAP extension placeholder values in default profile so the app boots without LDAP configured (Phase 7 wires real values).
-- Dev-services disabled in `%test` profile; tests that need Postgres / LocalStack will opt in explicitly (Phase 1+).
+## [0.0.1] — 2026-04-17 — Phase 0: Bootstrap
 
-## [0.0.1] — 2026-04-16 — Phase 0: Bootstrap
+First prerelease. The repository, CI surface, and runtime pipeline exist end-to-end; no product features yet. Next release (v0.1.0, Phase 1) lights up auth and the org / project model.
 
 ### Added
-- Repository scaffolding: top-level files (README, LICENSE, CHANGELOG, RELEASE-NOTES, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, CODEOWNERS).
-- `.github/` workflows skeleton (ci-backend, ci-webapp, ci-e2e, link-checker, codeql, release, pages, dependabot).
-- `.kiro/steering/` always-loaded steering files (architecture, contributing-rules, api-conventions, ui-conventions).
-- `CLAUDE.md`, `AGENTS.md`, `.claude/commands/` for AI-pair-programming context.
-- Gradle Kotlin DSL multi-module skeleton (`backend/`).
-- Webapp skeleton (Vite + React + TypeScript + Tailwind + shadcn/ui placeholder).
-- `infra/` with `docker-compose.yml` (Postgres 16, Redis 7, MinIO, Mailpit) and Dockerfile placeholders.
-- Read-only third-party reference sources under `_reference/` (gitignored).
-- `tasks.md` and `_progress.md` Kiro-style trackers.
-- MIT LICENSE.
+
+**Repository & governance**
+- Top-level files: `README.md`, `LICENSE` (MIT), `CHANGELOG.md`, `RELEASE-NOTES.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CODEOWNERS`.
+- Agent-pair-programming context: `CLAUDE.md`, `AGENTS.md`, `.claude/commands/` (`/new-phase`, `/release`, `/check-pr`, `/dogfood-strings`).
+- Always-loaded Kiro steering: `.kiro/steering/architecture.md`, `contributing-rules.md`, `api-conventions.md`, `ui-conventions.md`.
+- Kiro-style trackers: `tasks.md` (T001–T713) and `_progress.md` (phase dashboard + weekly log).
+- Branch protection on `master`: PR required, CODEOWNERS review, signed commits, linear history, no force push / deletions.
+- 97 GitHub issues seeded across 8 phase milestones with `type:*` / `scope:*` / `est:*` labels and an MVP partition (`mvp` / `post-mvp` / `deferred`).
+
+**CI / CD**
+- `.github/workflows/`: `ci-backend`, `ci-webapp`, `link-checker` (lychee), `codeql` (java-kotlin + javascript-typescript + actions), `release`, `pages`, Dependabot.
+- Issue templates (`bug.yml`, `feature.yml`, `question.yml`), PR template with 14-point pre-merge checklist.
+
+**Backend (Quarkus · Kotlin · Java 21)**
+- Gradle (Kotlin DSL) multi-module skeleton: `backend/{api,data,service,security,jobs,ai,mt,storage,email,webhooks,cdn,audit,app}` with convention plugins (`translately.base`, `translately.quarkus-module`, `translately.quarkus-app`).
+- Version catalog at `gradle/libs.versions.toml` pinning Kotlin 2.1 · Quarkus 3.17 · Kotest / MockK / Testcontainers / ArchUnit.
+- Runtime: Quarkus application boots, serves `GET /` (service metadata), `/q/health/{live,ready,started}`, `/q/openapi`, `/q/swagger-ui`. 6 @QuarkusTest assertions.
+- CDI bean discovery via `META-INF/beans.xml` in every backend module.
+- LDAP extension placeholder values in the default profile so the app boots without LDAP configured (Phase 7 wires real values).
+
+**Webapp (React · Vite · TypeScript · Tailwind · shadcn)**
+- pnpm workspace + Vite 6 + React 18 + TS 5.7 strict.
+- Design tokens for light + dark in `src/theme/tokens.css`; hsl-var references; honors `prefers-reduced-motion`; persistent focus rings.
+- `ThemeProvider` + `ThemeToggle` cycling light → dark → system with `localStorage` persistence and OS-preference reactivity.
+- shadcn primitive: `Button` (6 variants × 4 sizes × `asChild`).
+- Lucide icons only; `src/i18n/` dogfood wrapper with `en.json`.
+- App shell: header/main/footer landmarks, primary nav, metric cards, MVP summary.
+- 55 tests across 6 suites (`utils.test.ts`, `i18n.test.ts`, `button.test.tsx`, `ThemeProvider.test.tsx`, `ThemeToggle.test.tsx`, `App.test.tsx`) — all green, no axe violations in light or dark.
+
+**Infra**
+- `docker-compose.yml` for dev: Postgres 16, Redis 7, MinIO (auto-created buckets), Mailpit; Keycloak behind `--profile keycloak`.
+- `infra/docker/`: `backend.Dockerfile` (JVM fast-jar), `backend.native.Dockerfile` (GraalVM native-image), `webapp.Dockerfile` (nginx static + SPA + `/api` reverse proxy), `nginx.conf`.
+- `infra/compose-prod.yml` + `.env.prod.example` for single-host production.
+- `docs/` landing page + `self-hosting/hardening.md` placeholder.
+
+### Notes
+
+- No paywalled premium tier: every planned feature (SSO, SAML, LDAP, Tasks, Branching, Webhooks, Glossaries, custom storage, granular permissions, audit) will ship MIT.
+- AI is bring-your-own-key, entirely optional. The platform must work end-to-end with zero AI configured.
+- Third-party reference sources under `_reference/` are read-only, AGPL-licensed, gitignored, never copied.
 
 [Unreleased]: https://github.com/Pratiyush/translately/compare/v0.0.1...HEAD
 [0.0.1]: https://github.com/Pratiyush/translately/releases/tag/v0.0.1
