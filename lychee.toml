@@ -2,7 +2,7 @@
 # Tuning lives here so the workflow just runs `lychee --config lychee.toml`.
 
 # Verbose output in CI helps diagnose failures
-verbose = true
+verbose = "info"
 no_progress = true
 
 # Request behavior

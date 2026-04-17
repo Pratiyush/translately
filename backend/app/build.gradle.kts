@@ -3,7 +3,7 @@
 // Hosts OpenAPI generation + ArchUnit tests that enforce module boundaries.
 
 plugins {
-    id("translately.quarkus-module")
+    id("translately.quarkus-app")
 }
 
 dependencies {

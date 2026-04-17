@@ -1,8 +1,12 @@
-// Quarkus module convention — extends base with Kotlin-for-Quarkus plugins
-// and the common Quarkus BOM + core extensions every module needs.
+// Quarkus library-module convention.
+// Applied to every backend module EXCEPT `:backend:app`. These modules are
+// plain Kotlin JVM libraries that depend on Quarkus BOM + extensions; they
+// do NOT apply the `io.quarkus` Gradle plugin, because that plugin is meant
+// for the single "application" project. Running quarkusAppPartsBuild in
+// library modules fails with missing platform properties (SRCFG00011).
 //
-// Module-specific Quarkus extensions and project deps live in the module's
-// own build.gradle.kts, where the type-safe `libs.*` accessor is available.
+// The actual Quarkus application lives at `:backend:app` — see
+// `translately.quarkus-app` convention.
 
 import org.gradle.api.artifacts.VersionCatalogsExtension
 
@@ -10,7 +14,6 @@ plugins {
     id("translately.base")
     id("org.jetbrains.kotlin.plugin.allopen")
     id("org.jetbrains.kotlin.plugin.noarg")
-    id("io.quarkus")
 }
 
 val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
