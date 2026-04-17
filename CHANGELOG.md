@@ -7,7 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
-- _Phase 0 bootstrap in progress._
+- Quarkus application bootstraps cleanly with liveness/readiness/started probes under `/q/health*`, aggregate health at `/q/health`, OpenAPI at `/q/openapi`, and Swagger UI at `/q/swagger-ui`.
+- `GET /` service metadata endpoint returning name, version, and well-known endpoint paths.
+- Runtime config in `backend/app/src/main/resources/application.yml` with `default`, `%dev`, `%test`, `%prod` profiles.
+- CDI bean discovery via `META-INF/beans.xml` in every backend module so resources declared in sibling modules are discovered.
+- Test coverage for health probes, index endpoint, and OpenAPI reachability (`HealthAndIndexIT`, 6 tests).
+
+### Infrastructure
+- Elytron LDAP extension placeholder values in default profile so the app boots without LDAP configured (Phase 7 wires real values).
+- Dev-services disabled in `%test` profile; tests that need Postgres / LocalStack will opt in explicitly (Phase 1+).
 
 ## [0.0.1] — 2026-04-16 — Phase 0: Bootstrap
 
