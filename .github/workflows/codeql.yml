@@ -18,8 +18,26 @@ permissions:
   security-events: write
 
 jobs:
+  detect:
+    name: detect languages
+    runs-on: ubuntu-latest
+    outputs:
+      has_jsts: ${{ steps.check.outputs.has_jsts }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          # JS/TS analysis needs real source files; if webapp / sdks / cli haven't
+          # been scaffolded yet CodeQL's JS/TS extractor fails with "no source".
+          if [ -f webapp/package.json ] || [ -f sdks/js/package.json ] || [ -f sdks/react/package.json ] || [ -f cli/package.json ]; then
+            echo "has_jsts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_jsts=false" >> "$GITHUB_OUTPUT"
+          fi
+
   analyze:
     name: analyze (${{ matrix.language }})
+    needs: detect
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -34,7 +52,12 @@ jobs:
             build-mode: none
 
     steps:
+      - name: Skip JS/TS when no JS/TS source yet
+        if: matrix.language == 'javascript-typescript' && needs.detect.outputs.has_jsts != 'true'
+        run: echo "No JS/TS source in repo yet — skipping to avoid CodeQL no-source error."
+
       - uses: actions/checkout@v4
+        if: matrix.language != 'javascript-typescript' || needs.detect.outputs.has_jsts == 'true'
 
       - name: Set up JDK 21
         if: matrix.language == 'java-kotlin'
@@ -44,6 +67,7 @@ jobs:
           java-version: 21
 
       - name: Initialize CodeQL
+        if: matrix.language != 'javascript-typescript' || needs.detect.outputs.has_jsts == 'true'
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
@@ -51,6 +75,7 @@ jobs:
           queries: security-and-quality
 
       - name: Analyze
+        if: matrix.language != 'javascript-typescript' || needs.detect.outputs.has_jsts == 'true'
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"

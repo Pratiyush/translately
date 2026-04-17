@@ -3,7 +3,7 @@
 // Hosts OpenAPI generation + ArchUnit tests that enforce module boundaries.
 
 plugins {
-    id("translately.quarkus-module")
+    id("translately.quarkus-app")
 }
 
 dependencies {
@@ -33,4 +33,8 @@ dependencies {
     testImplementation(libs.quarkus.test.security)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit)
+
+    // RestAssured + Hamcrest — Quarkus BOM manages the versions.
+    testImplementation("io.rest-assured:rest-assured")
+    testImplementation("org.hamcrest:hamcrest")
 }

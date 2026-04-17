@@ -1,0 +1,28 @@
+# lychee link-checker config.
+# Tuning lives here so the workflow just runs `lychee --config lychee.toml`.
+
+# Verbose output in CI helps diagnose failures
+verbose = "info"
+no_progress = true
+
+# Request behavior
+timeout = 20
+retry_wait_time = 2
+max_retries = 3
+insecure = false
+
+# Skip the gitignored third-party mirror
+exclude_path = ["_reference"]
+
+# Mail links excluded by default (we don't set include_mail)
+
+# Skip known-future URLs that 404 until the corresponding release / deploy lands.
+# Revisit this list whenever a new phase tag ships and entries become reachable.
+exclude = [
+    # Release tags & compare views
+    '^https://github\.com/Pratiyush/translately/releases/tag/v\d+\.\d+\.\d+$',
+    '^https://github\.com/Pratiyush/translately/compare/v\d+\.\d+\.\d+\.\.\.HEAD$',
+
+    # GitHub Pages site — deploys on first push but DNS/cache may trail
+    '^https://pratiyush\.github\.io/translately/?$',
+]
