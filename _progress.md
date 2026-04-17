@@ -36,16 +36,16 @@ Target end-to-end: **12 weeks** from Phase 0 kickoff (2026-04-16) → **v1.0.0**
 - [x] `tasks.md` + `_progress.md` Kiro trackers
 - [x] `docker-compose.yml` + `infra/` scaffold — Postgres 16, Redis 7, MinIO, Mailpit
 - [x] Gradle KDSL skeleton — `settings.gradle.kts`, `build.gradle.kts`, `gradle/libs.versions.toml`, 13 empty modules (verified via `./gradlew projects`)
-- [ ] Quarkus app boots — `GET /q/health` returns `200 { "status": "UP" }`
-- [ ] Webapp boots — Vite dev server, dark/light toggle, shadcn placeholder component renders
-- [ ] `.github/workflows/` — ci-backend, ci-webapp, link-checker, codeql, dependabot (release.yml stubbed, not active)
-- [ ] `.github/` templates — PULL_REQUEST_TEMPLATE.md + ISSUE_TEMPLATE/{bug,feature,question}.yml
-- [ ] `docs/` GitHub Pages landing + placeholder sections
-- [ ] `.claude/commands/` — `/new-phase`, `/release`, `/check-pr`, `/dogfood-strings`
-- [ ] `git init` + initial commit + push to `https://github.com/Pratiyush/translately`
-- [ ] Branch protection on `master` — require PR, CI, signed commits, up-to-date, CODEOWNERS
-- [ ] CHANGELOG `[0.0.1]` final entry + RELEASE-NOTES narrative
-- [ ] Tag `v0.0.1` GPG-signed → release.yml fires → GitHub Release (prerelease) published
+- [x] Quarkus app boots — `GET /q/health` returns `200 { "status": "UP" }`; 6 @QuarkusTest assertions pass ([PR #110](https://github.com/Pratiyush/translately/pull/110))
+- [x] Webapp boots — Vite dev, light/dark/system toggle, shadcn primitive, Lucide icons, 55 tests across 6 suites all green ([PR #111](https://github.com/Pratiyush/translately/pull/111))
+- [x] `.github/workflows/` — ci-backend, ci-webapp, link-checker, codeql, release, pages, dependabot (all triggered and green on recent PRs)
+- [x] `.github/` templates — PULL_REQUEST_TEMPLATE.md + ISSUE_TEMPLATE/{bug,feature,question}.yml + config.yml
+- [x] `docs/` GitHub Pages landing (`index.html` + `README.md`) + `self-hosting/hardening.md` placeholder
+- [x] `.claude/commands/` — `/new-phase`, `/release`, `/check-pr`, `/dogfood-strings`
+- [x] `git init` + initial commit + push to `https://github.com/Pratiyush/translately`
+- [x] Branch protection on `master` — PR required, CODEOWNERS review, signed commits, linear history, no force push, conversation resolution
+- [ ] CHANGELOG `[0.0.1]` final entry + RELEASE-NOTES narrative (T017)
+- [ ] Tag `v0.0.1` GPG-signed → release.yml fires → GitHub Release (prerelease) published (T018)
 
 ### Verification (Phase 0 smoke)
 
@@ -222,3 +222,6 @@ pnpm --filter e2e test                              # Playwright end-to-end
 
 ### Week of 2026-04-13 (Phase 0 kickoff)
 - 2026-04-16: Plan approved. Memories saved. Seed docs (README, LICENSE, CHANGELOG, RELEASE-NOTES, CONTRIBUTING) written. Third-party reference sources cloned into `_reference/` (gitignored). `.gitignore` added. Top-level files (CODE_OF_CONDUCT, SECURITY, CODEOWNERS, CLAUDE.md, AGENTS.md) written. `.kiro/steering/` complete. Trackers (`tasks.md`, `_progress.md`) in place.
+- 2026-04-16: Docker compose + `infra/` scaffold. Gradle KDSL multi-module skeleton verified via `./gradlew projects`. 97 GitHub issues seeded (T001–T713) with type/scope/estimate labels + 8 phase milestones. MVP labels applied: 57 mvp / 37 post-mvp / 3 deferred (Figma plugin, MCP server, migration importer).
+- 2026-04-17: **T009 merged** ([PR #110](https://github.com/Pratiyush/translately/pull/110)). Quarkus application runs end-to-end: `/q/health`, `/q/health/live|ready|started`, `GET /` service metadata, `/q/openapi`, `/q/swagger-ui`. 6 @QuarkusTest assertions green. Fixed ktlint, CodeQL JS/TS gate, lychee forward-URL exclude list; split Quarkus convention plugin into app + library flavors.
+- 2026-04-17: **T010 merged** ([PR #111](https://github.com/Pratiyush/translately/pull/111)). Webapp shell: Vite 6 + React 18 + TS strict + Tailwind + shadcn Button + ThemeProvider (light/dark/system with localStorage + OS reactivity) + Lucide + dogfood i18n wrapper. 55 tests / 6 suites all green, axe 0 violations in light AND dark. Fixed pnpm-action-setup version collision and GitHub-advisory 503 false-positive.
