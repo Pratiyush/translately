@@ -48,6 +48,7 @@ Read these four files before any non-trivial change:
 - No N+1 queries; check Hibernate stats before declaring a DB-touching PR done.
 - Every UI change verified in light AND dark mode; keyboard nav; axe 0 violations.
 - Every new endpoint documented via OpenAPI annotations; regenerate SDK + webapp API client.
+- Keep the GitHub Pages site (`docs/`) in lock-step with product reality. Update the matching page in the same PR that ships the behaviour; verify the Pages deploy at <https://pratiyush.github.io/translately/> refreshes after every signed tag. Stale docs are worse than missing docs.
 
 ## Conventional Commits
 

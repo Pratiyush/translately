@@ -25,6 +25,7 @@ Kiro steering files under [.kiro/steering/](.kiro/steering/) are authoritative f
 6. **Phase → minor version.** Phase N → v0.N.0; v1.0.0 at Phase 7. GPG-signed tags trigger `release.yml`.
 7. **Light + dark + keyboard + a11y** verified for every UI change. WCAG 2.1 AA minimum.
 8. **No new dependency without justification** (license check, maintenance health, size).
+9. **Keep the GitHub Pages site (`docs/`) updated alongside product changes.** When a feature ships or a user-visible flow changes, update the matching page under `docs/` in the same PR. When a signed tag goes out, verify the Pages deploy at <https://pratiyush.github.io/translately/> reflects the new content (the `pages.yml` workflow deploys on every push to `master`). Stale docs are worse than missing docs — they mislead users and dampen trust.
 
 ## Stack cheat-sheet
 
