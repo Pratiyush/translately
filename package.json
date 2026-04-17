@@ -1,0 +1,17 @@
+{
+  "name": "translately",
+  "version": "0.0.1-SNAPSHOT",
+  "private": true,
+  "description": "Open-source, MIT-licensed, self-hosted localization and translation management platform (monorepo root).",
+  "author": "Pratiyush <pratiyush1@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pratiyush/translately.git"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

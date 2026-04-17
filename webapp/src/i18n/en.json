@@ -1,0 +1,13 @@
+{
+  "app.title": "Translately",
+  "app.tagline": "Open-source localization and translation management.",
+  "app.cta.docs": "Read the docs",
+  "app.cta.github": "Source on GitHub",
+  "app.phase.label": "Phase",
+  "app.phase.current": "Phase 0 — Bootstrap",
+  "app.status.label": "Status",
+  "app.status.prealpha": "Pre-alpha",
+  "nav.theme.toggle": "Toggle theme",
+  "meta.mvp.title": "First MVP (Phases 0–3)",
+  "meta.mvp.body": "Bootstrap → auth → keys & translations with ICU → JSON import/export. End state: Translately works end-to-end without AI configured."
+}

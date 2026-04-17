@@ -1,0 +1,7 @@
+dist
+node_modules
+coverage
+.vite
+pnpm-lock.yaml
+src/components/ui
+public
