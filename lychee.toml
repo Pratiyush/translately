@@ -21,7 +21,7 @@ exclude_path = ["_reference"]
 exclude = [
     # Release tags & compare views
     '^https://github\.com/Pratiyush/translately/releases/tag/v\d+\.\d+\.\d+$',
-    '^https://github\.com/Pratiyush/translately/compare/v\d+\.\d+\.\d+\.\.\.HEAD$',
+    '^https://github\.com/Pratiyush/translately/compare/v\d+\.\d+\.\d+\.\.\.(HEAD|master|v\d+\.\d+\.\d+)$',
 
     # GitHub Pages site — deploys on first push but DNS/cache may trail
     '^https://pratiyush\.github\.io/translately/?$',
