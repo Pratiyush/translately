@@ -86,8 +86,6 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         if: steps.check.outputs.present == 'true'
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         if: steps.check.outputs.present == 'true'
