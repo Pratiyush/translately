@@ -2,6 +2,10 @@
 
 Short, enforceable. Full onboarding text is in [CONTRIBUTING.md](../../CONTRIBUTING.md); this file is the quick-reference any agent or human reads before opening a PR.
 
+## Golden rule — do not name the prior-art localization platform
+
+Translately is a standalone product. The literal name of the upstream localization platform whose sources sit under `_reference/` must not appear in any committed file — code, docs, comments, commit messages, PR titles, issue bodies, changelogs, UI strings, tests. Reframe positioning on its own merits. Refer to the third-party sources under `_reference/` generically; do not name the upstream. The AGPL-compliance rule below is preserved without naming the source. The forbidden name is documented only in the out-of-repo memory file `feedback_no_competitor_name.md`.
+
 ## Commits
 
 - **GPG-signed.** `git config commit.gpgsign true`. Unsigned commits are blocked by branch protection and by `.githooks/pre-commit`. Never use `--no-verify` or `-c commit.gpgsign=false`.

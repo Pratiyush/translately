@@ -40,6 +40,7 @@ Read these four files before any non-trivial change:
 
 ## Hard rules
 
+- **GOLDEN RULE — do not name the prior-art localization platform** whose sources sit under `_reference/`. Not in code, docs, comments, commit messages, PR titles, issue bodies, changelogs, UI strings, or tests. Reframe positioning as a standalone product. Refer to `_reference/` generically; the AGPL-compliance rule stands without naming the upstream. The forbidden name is documented only in the out-of-repo memory file `feedback_no_competitor_name.md`.
 - GPG-signed commits only; never `--no-verify`; never skip hooks.
 - No `Co-authored-by: <AI>` trailers.
 - No AGPL/GPL (or AGPL-ish) dependencies; MIT / Apache-2.0 / BSD-2/3 / ISC / MPL-2.0 only.

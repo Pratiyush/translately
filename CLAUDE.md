@@ -16,6 +16,7 @@ Kiro steering files under [.kiro/steering/](.kiro/steering/) are authoritative f
 
 ## Hard rules (non-negotiable)
 
+0. **GOLDEN RULE — do not name the prior-art localization platform.** No file Translately authors — code, docs, comments, commit messages, PR titles, issue bodies, changelogs, UI strings, tests — may contain the literal name of the upstream localization platform whose sources sit under `_reference/`. Reframe positioning as a standalone product. Refer to `_reference/` generically (never name the source). The AGPL-compliance rule below is preserved without naming the upstream. The forbidden name is documented only in the out-of-repo memory file `feedback_no_competitor_name.md` (path: `~/.claude/projects/.../memory/`).
 1. **GPG-signed commits required.** Never use `--no-verify`, never skip signing.
 2. **Author = Pratiyush <pratiyush1@gmail.com> only.** No `Co-authored-by: Claude` or AI co-author trailers anywhere.
 3. **One intent per PR.** Don't mix feature + refactor + typo. Split mixed PRs.
