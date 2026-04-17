@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test
  */
 @QuarkusTest
 class TenantRequestFilterIT {
-
     // ---- path extraction (no HTTP) ---------------------------------------
 
     @Test
@@ -63,20 +62,32 @@ class TenantRequestFilterIT {
 
     @Test
     fun `unprotected path leaves the tenant unbound`() {
-        given().`when`().get("/test/tenant/current")
-            .then().statusCode(200).body(equalTo(""))
+        given()
+            .`when`()
+            .get("/test/tenant/current")
+            .then()
+            .statusCode(200)
+            .body(equalTo(""))
     }
 
     @Test
     fun `organization path populates the tenant context`() {
-        given().`when`().get("/api/v1/organizations/acme/projects/foo/probe")
-            .then().statusCode(200).body(equalTo("acme"))
+        given()
+            .`when`()
+            .get("/api/v1/organizations/acme/projects/foo/probe")
+            .then()
+            .statusCode(200)
+            .body(equalTo("acme"))
     }
 
     @Test
     fun `ULID-shaped organization path populates the tenant context`() {
-        given().`when`().get("/api/v1/organizations/01HT7F8KXN0GZJYQP3M5CRSBNW/projects/foo/probe")
-            .then().statusCode(200).body(equalTo("01HT7F8KXN0GZJYQP3M5CRSBNW"))
+        given()
+            .`when`()
+            .get("/api/v1/organizations/01HT7F8KXN0GZJYQP3M5CRSBNW/projects/foo/probe")
+            .then()
+            .statusCode(200)
+            .body(equalTo("01HT7F8KXN0GZJYQP3M5CRSBNW"))
     }
 
     // ---- probe resources -------------------------------------------------
@@ -111,5 +122,6 @@ class TenantRequestFilterIT {
 }
 
 private infix fun <T> T.shouldBeEqual(expected: T) {
-    org.junit.jupiter.api.Assertions.assertEquals(expected, this)
+    org.junit.jupiter.api.Assertions
+        .assertEquals(expected, this)
 }
