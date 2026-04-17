@@ -31,16 +31,16 @@ The per-phase signed-tag cadence (one minor per phase) stays unchanged; the `mvp
 | T006 | [x] | docs | xs | `tasks.md` + `_progress.md` Kiro trackers | — |
 | T007 | [x] | infra | s | `docker-compose.yml` (postgres 16, redis 7, minio, mailpit) + `infra/` scaffold | — |
 | T008 | [x] | backend | m | Gradle KDSL skeleton — `settings.gradle.kts`, `build.gradle.kts`, `gradle/libs.versions.toml`, empty modules | — |
-| T009 | [ ] | backend | m | Quarkus app boots — `GET /q/health` green, minimal index endpoint | — |
-| T010 | [ ] | webapp | m | Vite + React + TS + Tailwind + shadcn placeholder shell boots | — |
-| T011 | [ ] | infra | m | `.github/workflows/` — ci-backend, ci-webapp, link-checker, codeql, dependabot | — |
-| T012 | [ ] | infra | s | `.github/` templates — PULL_REQUEST_TEMPLATE.md, ISSUE_TEMPLATE/{bug,feature,question}.yml | — |
-| T013 | [ ] | docs | s | `docs/` GitHub Pages landing + placeholder sections | — |
-| T014 | [ ] | infra | s | `.claude/commands/` project slash commands (`/new-phase`, `/release`, `/check-pr`, `/dogfood-strings`) | — |
-| T015 | [ ] | infra | xs | `git init` + initial commit + `gh repo` push to `Pratiyush/translately` | — |
-| T016 | [ ] | infra | xs | Branch protection on `master` (require PR, CI, signed commits, up-to-date, CODEOWNERS) | — |
-| T017 | [ ] | docs | xs | CHANGELOG `[0.0.1]` final entry + RELEASE-NOTES | — |
-| T018 | [ ] | infra | xs | Tag `v0.0.1` GPG-signed; `release.yml` fires; GH Release created, prerelease flag set | — |
+| T009 | [x] | backend | m | Quarkus app boots — `GET /q/health` green, minimal index endpoint | [#9 / PR #110](https://github.com/Pratiyush/translately/pull/110) |
+| T010 | [x] | webapp | m | Vite + React + TS + Tailwind + shadcn placeholder shell boots | [#10 / PR #111](https://github.com/Pratiyush/translately/pull/111) |
+| T011 | [x] | infra | m | `.github/workflows/` — ci-backend, ci-webapp, link-checker, codeql, dependabot | [#11](https://github.com/Pratiyush/translately/issues/11) |
+| T012 | [x] | infra | s | `.github/` templates — PULL_REQUEST_TEMPLATE.md, ISSUE_TEMPLATE/{bug,feature,question}.yml | [#12](https://github.com/Pratiyush/translately/issues/12) |
+| T013 | [x] | docs | s | `docs/` GitHub Pages landing + placeholder sections | [#13](https://github.com/Pratiyush/translately/issues/13) |
+| T014 | [x] | infra | s | `.claude/commands/` project slash commands (`/new-phase`, `/release`, `/check-pr`, `/dogfood-strings`) | [#14](https://github.com/Pratiyush/translately/issues/14) |
+| T015 | [x] | infra | xs | `git init` + initial commit + `gh repo` push to `Pratiyush/translately` | [#15](https://github.com/Pratiyush/translately/issues/15) |
+| T016 | [x] | infra | xs | Branch protection on `master` (require PR, CI, signed commits, up-to-date, CODEOWNERS) | [#16](https://github.com/Pratiyush/translately/issues/16) |
+| T017 | [ ] | docs | xs | CHANGELOG `[0.0.1]` final entry + RELEASE-NOTES | [#17](https://github.com/Pratiyush/translately/issues/17) |
+| T018 | [ ] | infra | xs | Tag `v0.0.1` GPG-signed; `release.yml` fires; GH Release created, prerelease flag set | [#18](https://github.com/Pratiyush/translately/issues/18) |
 
 ---
 
