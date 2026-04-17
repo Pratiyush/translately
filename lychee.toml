@@ -25,4 +25,10 @@ exclude = [
 
     # GitHub Pages site — deploys on first push but DNS/cache may trail
     '^https://pratiyush\.github\.io/translately/?$',
+
+    # GitHub security advisories — returns 302/503 to unauthenticated clients
+    '^https://github\.com/Pratiyush/translately/security/advisories/new/?$',
 ]
+
+# Accept common redirect status codes so 302 login walls don't trip the checker
+accept = [200, 202, 206, 301, 302, 303, 307, 308, 403, 429]
