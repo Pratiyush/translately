@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added (Phase 1 in progress)
+- **JPA entities for auth + orgs** (`:backend:data`): `User`, `Organization`, `OrganizationMember`, `Project`, `ProjectLanguage`, `ApiKey`, `Pat`. Common `BaseEntity` superclass with auto-maintained `createdAt` / `updatedAt` + external ULID. Enums: `OrganizationRole`, `LanguageDirection`, `AiProvider`.
+- **ULID generator** (`io.translately.data.Ulid`) — Crockford-base32, 26 chars, monotonic within a single millisecond batch.
+- 47 Kotest tests covering ULID properties, email normalization, slug normalization, verification status, AI-flag logic, token active/expired/revoked semantics, and entity defaults.
+
+### Infrastructure
+- Convention plugin `translately.quarkus-module` now adds `jakarta.persistence.Entity` / `MappedSuperclass` / `Embeddable` to the `kotlin-allopen` annotation set so entity classes are non-final (required by Hibernate proxies).
 
 ## [0.0.1] — 2026-04-17 — Phase 0: Bootstrap
 
