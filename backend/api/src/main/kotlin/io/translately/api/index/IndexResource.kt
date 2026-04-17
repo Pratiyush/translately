@@ -17,7 +17,6 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag
 @Path("/")
 @Tag(name = "meta", description = "Service metadata")
 class IndexResource {
-
     @ConfigProperty(name = "quarkus.application.name")
     lateinit var appName: String
 
@@ -28,14 +27,15 @@ class IndexResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Service metadata", description = "Returns name, version, and well-known endpoint paths.")
     @APIResponse(responseCode = "200", description = "OK")
-    fun index(): Index = Index(
-        name = appName,
-        version = appVersion,
-        docs = "https://github.com/Pratiyush/translately",
-        health = "/q/health",
-        openapi = "/q/openapi",
-        swagger = "/q/swagger-ui",
-    )
+    fun index(): Index =
+        Index(
+            name = appName,
+            version = appVersion,
+            docs = "https://github.com/Pratiyush/translately",
+            health = "/q/health",
+            openapi = "/q/openapi",
+            swagger = "/q/swagger-ui",
+        )
 
     data class Index(
         val name: String,
