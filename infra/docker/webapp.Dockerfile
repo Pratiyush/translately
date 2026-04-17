@@ -8,7 +8,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ---------- build stage ----------
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /workspace
 
 RUN corepack enable
