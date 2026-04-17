@@ -44,3 +44,9 @@ secrets/
 
 # Local run output (Gradle, pnpm, background tasks)
 .logs/
+
+# JVM crash dumps and snapshots (OpenJ9 / HotSpot)
+core.*.dmp
+javacore.*.txt
+Snap.*.trc
+hs_err_pid*.log
