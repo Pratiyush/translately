@@ -32,14 +32,18 @@ dependencies {
     "testImplementation"(versionCatalog.findLibrary("mockk").get())
 }
 
-// CDI beans written as Kotlin classes need the `all-open` plugin to be non-final.
+// CDI beans + JPA entities written as Kotlin classes need the `all-open` plugin
+// to be non-final so the container can create proxies.
 allOpen {
     annotation("jakarta.enterprise.context.ApplicationScoped")
     annotation("jakarta.enterprise.context.RequestScoped")
     annotation("jakarta.inject.Singleton")
+    annotation("jakarta.persistence.Entity")
+    annotation("jakarta.persistence.MappedSuperclass")
+    annotation("jakarta.persistence.Embeddable")
 }
 
-// @Entity data classes need a no-arg constructor for Hibernate.
+// @Entity classes need a no-arg constructor for Hibernate.
 noArg {
     annotation("jakarta.persistence.Entity")
     annotation("jakarta.persistence.Embeddable")
