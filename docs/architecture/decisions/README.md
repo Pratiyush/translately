@@ -6,11 +6,9 @@ Format: [MADR 3.0](https://adr.github.io/madr/) (Markdown Any Decision Record). 
 
 ## Index
 
-*Filled in by back-fill PRs and every future PR that makes a non-trivial technical choice.*
-
 | # | Title | Status | Date |
 |---|---|---|---|
-| *none yet* | | | |
+| [0001](0001-argon2id-password-hashing.md) | Argon2id for password and token hashing | Accepted | 2026-04-18 |
 
 ## Numbering
 
