@@ -97,3 +97,21 @@ The canonical docs live at <https://pratiyush.github.io/translately/>, served fr
 - **Tag-gate rule.** Before pushing a signed `v0.X.Y` tag, skim the live Pages site and confirm it reflects the release contents; note any stale page in the release retrospective.
 - **Phase end.** Each phase retrospective explicitly checks that the roadmap, quickstart, and any newly-shipped pages are reachable and current on the live site.
 - **Empty pages rule.** A page that promises content we haven't shipped yet must carry a "placeholder — full content ships in vX.Y.Z" banner, not silently 404 or mislead.
+
+## Every ticket ships its docs
+
+The `docs/` tree has five surfaces; each PR updates the ones its change touches.
+
+| Surface | Path | Update trigger |
+|---|---|---|
+| **Product** | `docs/product/` | Any user-visible feature, flow, or UI change. Include light + dark screenshots. |
+| **Architecture** | `docs/architecture/` + ADRs under `docs/architecture/decisions/` | Module graph edit, library swap, storage/auth/perf trade-off. Non-trivial technical decisions get a new ADR (`NNN-title.md`). |
+| **API** | `docs/api/` (+ regenerated `docs/api/openapi.json`) | New / changed / removed endpoint, scope, error code, rate-limit, or versioning rule. |
+| **Self-hosting** | `docs/self-hosting/` | New env var, compose service, Helm value, migration, backup concern, or security hardening. |
+| **LLM-ingestible** | `docs/llms.txt` (index) + `docs/llms-full.txt` (full corpus), per [llmstxt.org](https://llmstxt.org) | Regenerate **whenever** any other `docs/` page lands, so LLM consumers pull a coherent snapshot. |
+
+Doc-missing PRs block merge. If a ticket slips docs mid-flight, open a `docs(docs): ...` follow-up issue in the **same milestone** and land it before the phase's signed tag. By v0.3.0 every MVP feature is fully documented; by v1.0.0 the tree is the canonical product source-of-truth.
+
+### Ticket acceptance criteria
+
+Every issue body carries a `## Docs` section listing which of the five surfaces it must update. Agents and humans check those boxes in the PR description before requesting review. A ticket whose acceptance criteria don't list any doc surface is itself a red flag — either the change is invisible to users and operators (rare) or the criteria are incomplete.

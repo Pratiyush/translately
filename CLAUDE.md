@@ -26,6 +26,14 @@ Kiro steering files under [.kiro/steering/](.kiro/steering/) are authoritative f
 7. **Light + dark + keyboard + a11y** verified for every UI change. WCAG 2.1 AA minimum.
 8. **No new dependency without justification** (license check, maintenance health, size).
 9. **Keep the GitHub Pages site (`docs/`) updated alongside product changes.** When a feature ships or a user-visible flow changes, update the matching page under `docs/` in the same PR. When a signed tag goes out, verify the Pages deploy at <https://pratiyush.github.io/translately/> reflects the new content (the `pages.yml` workflow deploys on every push to `master`). Stale docs are worse than missing docs — they mislead users and dampen trust.
+10. **Every ticket ships its docs — product, technical, API, and LLM-ingestible.** Every PR that changes user-visible behaviour, the API surface, a config knob, or architecture MUST update the matching page(s) under `docs/` in the same PR. The doc surfaces, one per ticket type:
+    - **Product** (`docs/product/`) — feature pages, walkthroughs, screenshots (light + dark) for every user-visible flow.
+    - **Architecture** (`docs/architecture/` + ADRs under `docs/architecture/decisions/`) — module maps, data-flow diagrams, and an ADR for any non-trivial technical choice (library swap, auth strategy, storage layout, algorithm, performance trade-off).
+    - **API** (`docs/api/`) — OpenAPI-backed endpoint reference, plus scope matrix, error-code catalogue, rate-limit policy, versioning contract. Regenerate the committed `docs/api/openapi.json` on every API change.
+    - **Self-hosting** (`docs/self-hosting/`) — every new env var, compose service, Helm value, migration, or backup concern.
+    - **LLM-ingestible** (`docs/llms.txt` + `docs/llms-full.txt`) — the [llmstxt.org](https://llmstxt.org) standard. Any doc addition/change must regenerate these so LLMs (Claude, Cursor, in-house assistants) can consume the full corpus at `{pages-url}/llms-full.txt`.
+
+    Doc-missing PRs are blocked from merge. If a ticket slipped docs in-flight, open a `docs(docs): ...` follow-up in the same milestone before the phase-tag goes out. By v0.3.0 (MVP end) every shipped feature must be fully documented; by v1.0.0 the entire `docs/` tree is the canonical product source-of-truth.
 
 ## Stack cheat-sheet
 

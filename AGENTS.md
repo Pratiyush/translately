@@ -49,6 +49,7 @@ Read these four files before any non-trivial change:
 - Every UI change verified in light AND dark mode; keyboard nav; axe 0 violations.
 - Every new endpoint documented via OpenAPI annotations; regenerate SDK + webapp API client.
 - Keep the GitHub Pages site (`docs/`) in lock-step with product reality. Update the matching page in the same PR that ships the behaviour; verify the Pages deploy at <https://pratiyush.github.io/translately/> refreshes after every signed tag. Stale docs are worse than missing docs.
+- Every ticket ships its docs across four surfaces: **product** (`docs/product/`), **architecture** (`docs/architecture/` + ADRs under `docs/architecture/decisions/`), **API** (`docs/api/` + regenerated `docs/api/openapi.json`), **self-hosting** (`docs/self-hosting/`), and regenerate **LLM-ingestible** docs (`docs/llms.txt`, `docs/llms-full.txt`, per [llmstxt.org](https://llmstxt.org)). Doc-missing PRs are blocked; open a `docs(docs): ...` follow-up in the same milestone if docs slip. Every shipped feature is fully documented by v0.3.0 (MVP end); the full tree is canonical by v1.0.0.
 
 ## Conventional Commits
 

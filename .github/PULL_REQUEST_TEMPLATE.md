@@ -32,6 +32,18 @@ Closes #
 
 <!-- For any UI change: attach light + dark mode captures. Delete this section otherwise. -->
 
+## Docs
+
+Every PR ships its docs. Tick the surfaces this change touches (strike through with `~~...~~` those that genuinely don't apply, and explain in one line why):
+
+- [ ] **Product** (`docs/product/`) — walkthrough + light/dark screenshots for any user-visible flow
+- [ ] **Architecture** (`docs/architecture/` + a new `docs/architecture/decisions/NNN-...md` ADR for any non-trivial technical choice)
+- [ ] **API** (`docs/api/` + regenerated `docs/api/openapi.json`) for new/changed endpoints, scopes, errors, rate-limits, or versioning rules
+- [ ] **Self-hosting** (`docs/self-hosting/`) for env vars, compose services, Helm values, migrations, backups, or hardening
+- [ ] **LLM-ingestible** — regenerated `docs/llms.txt` + `docs/llms-full.txt` (per llmstxt.org) so Claude / Cursor / in-house LLMs stay in sync
+
+If none of the surfaces apply, say so explicitly and the reviewer will re-check before merge.
+
 ## Pre-merge checklist
 
 - [ ] PR is **one intent** (no mixed concerns)
@@ -48,3 +60,4 @@ Closes #
 - [ ] Performance: no N+1 queries introduced (Hibernate stats checked locally)
 - [ ] Commits **GPG-signed** by Pratiyush, no AI co-author trailers
 - [ ] Reviewer has read every changed line (no rubber-stamping)
+- [ ] **Docs updated** per the `## Docs` section above; no doc surface silently skipped
