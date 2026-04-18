@@ -84,10 +84,75 @@ Per [CLAUDE.md rule #10](../../CLAUDE.md), every PR that changes an endpoint, sc
 
 The committed [`openapi.json`](openapi.json) is the source of truth for generated clients:
 
-- [@translately/js SDK](../../sdks/js) is generated from this file via `openapi-typescript`.
+- The `@translately/js` SDK (Phase 5 — `sdks/js/`) is generated from this file via `openapi-typescript`.
 - The webapp uses the same generated types for every network call (T120).
 
 If you change a controller, regenerate the spec in the same PR. A stale `openapi.json` breaks the SDK build.
+
+
+<!-- ===== FILE: api/auth.md ===== -->
+
+# API — authentication endpoints
+
+> **Status:** placeholder. Filled in by [T103 / T104-docs](https://github.com/Pratiyush/translately/issues/131) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: api/errors.md ===== -->
+
+# Error-code catalogue
+
+> **Status:** placeholder. Filled in by [Phase 1 API back-fill](https://github.com/Pratiyush/translately/milestone/2) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: api/rate-limits.md ===== -->
+
+# Rate limits
+
+> **Status:** placeholder. Filled in by [Phase 1 API back-fill](https://github.com/Pratiyush/translately/milestone/2) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: api/scopes.md ===== -->
+
+# Permission scopes
+
+> **Status:** placeholder. Filled in by [T108-docs](https://github.com/Pratiyush/translately/issues/133) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: api/versioning.md ===== -->
+
+# API versioning
+
+> **Status:** placeholder. Filled in by [Phase 1 API back-fill](https://github.com/Pratiyush/translately/milestone/2) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
 
 
 <!-- ===== FILE: architecture/README.md ===== -->
@@ -121,6 +186,58 @@ Architecture Decision Records live under [`decisions/`](decisions/). Every non-t
 - **Mermaid** in `.md` files — renders natively on GitHub + Pages.
 - **Exported PNGs** under `diagrams/` for the llms-full.txt ingestion (text-only LLMs can't parse `mermaid` blocks).
 - **Source alongside rendered** — keep the `.mmd` next to the `.png` so diagrams are reproducible.
+
+
+<!-- ===== FILE: architecture/auth.md ===== -->
+
+# Authentication architecture
+
+> **Status:** placeholder. Filled in by [T104-docs](https://github.com/Pratiyush/translately/issues/131) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: architecture/authorization.md ===== -->
+
+# Authorization — scopes & roles
+
+> **Status:** placeholder. Filled in by [T108-docs / T109-docs](https://github.com/Pratiyush/translately/issues/134) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: architecture/crypto.md ===== -->
+
+# Crypto — envelope encryption
+
+> **Status:** placeholder. Filled in by [T112-docs](https://github.com/Pratiyush/translately/issues/136) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: architecture/data-model.md ===== -->
+
+# Data model — ER diagram
+
+> **Status:** placeholder. Filled in by [T101-docs](https://github.com/Pratiyush/translately/issues/129) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
 
 
 <!-- ===== FILE: architecture/decisions/README.md ===== -->
@@ -160,10 +277,10 @@ When in doubt, write one — they're cheap to read and the audit trail is the wh
 
 # NNNN — Title of decision
 
-- **Status:** Proposed | Accepted | Superseded by [NNNN](NNNN-title.md) | Deprecated
+- **Status:** Proposed | Accepted | Superseded by `NNNN-…` | Deprecated
 - **Date:** YYYY-MM-DD
 - **Deciders:** Pratiyush
-- **Context link:** [issue #N](https://github.com/Pratiyush/translately/issues/N)
+- **Context link:** `https://github.com/Pratiyush/translately/issues/<N>` (fill in on adoption)
 
 ## Context and problem statement
 
@@ -199,8 +316,60 @@ What forced this decision? Describe the pressure: a requirement, a constraint, a
 
 ## Links
 
-- [Referenced PR](https://github.com/Pratiyush/translately/pull/N)
+- Referenced PR: `https://github.com/Pratiyush/translately/pull/<N>`
 - [Relevant docs](../README.md)
+
+
+<!-- ===== FILE: architecture/modules.md ===== -->
+
+# Module map
+
+> **Status:** placeholder. Filled in by [T101-docs](https://github.com/Pratiyush/translately/issues/129) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: architecture/multi-tenancy.md ===== -->
+
+# Multi-tenancy
+
+> **Status:** placeholder. Filled in by [T111-docs](https://github.com/Pratiyush/translately/issues/135) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: architecture/request-lifecycle.md ===== -->
+
+# Request lifecycle
+
+> **Status:** placeholder. Filled in by [T111-docs](https://github.com/Pratiyush/translately/issues/135) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: architecture/webapp.md ===== -->
+
+# Webapp architecture
+
+> **Status:** placeholder. Filled in by [T115-docs](https://github.com/Pratiyush/translately/issues/138) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
 
 
 <!-- ===== FILE: product/README.md ===== -->
@@ -226,6 +395,45 @@ Per [CLAUDE.md rule #10](../../CLAUDE.md), every PR that changes a user-visible 
 - **Keyboard section.** Every page lists the keyboard shortcuts that touch the feature, plus any ARIA landmarks used.
 - **Code blocks are runnable.** No pseudo-code. If a request body is shown, it works against the current API.
 - **Link to the CHANGELOG entry** that first introduced the feature.
+
+
+<!-- ===== FILE: product/app-shell.md ===== -->
+
+# Application shell
+
+> **Status:** placeholder. Filled in by [T115-docs](https://github.com/Pratiyush/translately/issues/138) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: product/auth.md ===== -->
+
+# Authentication — signup / login / reset
+
+> **Status:** placeholder. Filled in by [T103](https://github.com/Pratiyush/translately/issues/21) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
+
+
+<!-- ===== FILE: product/theming.md ===== -->
+
+# Theming — light / dark / system
+
+> **Status:** placeholder. Filled in by [T114-docs](https://github.com/Pratiyush/translately/issues/137) under Phase 1 doc back-fill.
+
+This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+
+- [Product index](../product/README.md)
+- [API index](../api/README.md)
+- [Architecture index](../architecture/README.md)
 
 
 <!-- ===== FILE: self-hosting/hardening.md ===== -->

@@ -26,7 +26,7 @@ Per [CLAUDE.md rule #10](../../CLAUDE.md), every PR that changes an endpoint, sc
 
 The committed [`openapi.json`](openapi.json) is the source of truth for generated clients:
 
-- [@translately/js SDK](../../sdks/js) is generated from this file via `openapi-typescript`.
+- The `@translately/js` SDK (Phase 5 — `sdks/js/`) is generated from this file via `openapi-typescript`.
 - The webapp uses the same generated types for every network call (T120).
 
 If you change a controller, regenerate the spec in the same PR. A stale `openapi.json` breaks the SDK build.

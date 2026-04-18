@@ -1,9 +1,9 @@
 # NNNN — Title of decision
 
-- **Status:** Proposed | Accepted | Superseded by [NNNN](NNNN-title.md) | Deprecated
+- **Status:** Proposed | Accepted | Superseded by `NNNN-…` | Deprecated
 - **Date:** YYYY-MM-DD
 - **Deciders:** Pratiyush
-- **Context link:** [issue #N](https://github.com/Pratiyush/translately/issues/N)
+- **Context link:** `https://github.com/Pratiyush/translately/issues/<N>` (fill in on adoption)
 
 ## Context and problem statement
 
@@ -39,5 +39,5 @@ What forced this decision? Describe the pressure: a requirement, a constraint, a
 
 ## Links
 
-- [Referenced PR](https://github.com/Pratiyush/translately/pull/N)
+- Referenced PR: `https://github.com/Pratiyush/translately/pull/<N>`
 - [Relevant docs](../README.md)
