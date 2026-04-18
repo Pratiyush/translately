@@ -92,67 +92,690 @@ If you change a controller, regenerate the spec in the same PR. A stale `openapi
 
 <!-- ===== FILE: api/auth.md ===== -->
 
-# API — authentication endpoints
+# API — authentication
 
-> **Status:** placeholder. Filled in by [T103 / T104-docs](https://github.com/Pratiyush/translately/issues/131) under Phase 1 doc back-fill.
+This page covers **HTTP-level** authentication — the endpoints, the headers, and the payload shapes. For the design-level view (why rotation, why Argon2id, credential-type tradeoffs), see [auth architecture](../architecture/auth.md).
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T103](https://github.com/Pratiyush/translately/issues/21) (email + password + verify + refresh), [T104](https://github.com/Pratiyush/translately/issues/22) (JWT issuer), [T110](https://github.com/Pratiyush/translately/issues/28) (API keys + PATs).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related: [scopes](scopes.md), [errors](errors.md), [auth architecture](../architecture/auth.md).
+
+## Credential types
+
+Translately accepts four kinds of credential on an authenticated request:
+
+| Credential | Header | Token prefix | Identifies | TTL |
+|---|---|---|---|---|
+| Access JWT | `Authorization: Bearer <jwt>` | — | a user | ~15 min |
+| API key | `Authorization: ApiKey <prefix>_<secret>` | `tr_apikey_…` | a project | until revoked / expired |
+| PAT | `Authorization: Bearer tr_pat_<prefix>_<secret>` | `tr_pat_…` | a user | until revoked / expired |
+| OIDC (Phase 7) | `Authorization: Bearer <idp-jwt>` | — | a user | IdP-defined |
+
+A request carrying **more than one** credential is rejected — exactly one authenticator runs per request. The prefix (`tr_apikey_…` vs `tr_pat_…` vs a vanilla JWT) tells the filter which branch to take.
+
+## Endpoints
+
+All endpoints live under `/api/v1/auth/`. No scope is required to call them — they're the pre-auth surface.
+
+### `POST /api/v1/auth/signup`
+
+Create a new user. Always returns 202 (see the forgot-password note below for the enumeration-avoidance rationale).
+
+```http
+POST /api/v1/auth/signup
+Content-Type: application/json
+
+{
+  "email":    "me@example.com",
+  "password": "correct horse battery staple",
+  "fullName": "Me"
+}
+
+HTTP/1.1 202 Accepted
+```
+
+- Side-effect: sends a verify-email message via Quarkus Mailer → Mailpit in dev.
+- The verify link embeds a single-use Argon2id-hashed token; clicking it hits `POST /auth/verify-email`.
+- Validation errors (too-short password, malformed email) return `VALIDATION_FAILED` (400).
+
+### `POST /api/v1/auth/verify-email`
+
+Consume the verification token from the email. On success, stamps `users.email_verified_at = NOW()`.
+
+```http
+POST /api/v1/auth/verify-email
+Content-Type: application/json
+
+{ "token": "<opaque>" }
+
+HTTP/1.1 204 No Content
+```
+
+- Wrong / expired token → `INVALID_CREDENTIALS` (401).
+
+### `POST /api/v1/auth/login`
+
+Exchange email + password for an access + refresh pair.
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "me@example.com", "password": "correct horse battery staple" }
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "accessToken":       "eyJ...",
+  "accessExpiresAt":   "2026-04-18T11:00:00Z",
+  "refreshToken":      "eyJ...",
+  "refreshExpiresAt":  "2026-05-18T10:45:00Z"
+}
+```
+
+- The refresh token is **also** set as an `HttpOnly; Secure; SameSite=Lax` cookie named `tr_refresh` for browser clients. CLI / server clients use the JSON body.
+- Wrong credentials → `INVALID_CREDENTIALS` (401). Unverified email → `EMAIL_NOT_VERIFIED` (403).
+
+### `POST /api/v1/auth/refresh`
+
+Rotate the refresh token. **Single-use** — presenting a refresh token that was already consumed invalidates every refresh token for that user (session-wide kill switch on suspected replay).
+
+```http
+POST /api/v1/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "eyJ..." }
+
+HTTP/1.1 200 OK
+{
+  "accessToken":      "eyJ...",
+  "accessExpiresAt":  "2026-04-18T11:15:00Z",
+  "refreshToken":     "eyJ...",
+  "refreshExpiresAt": "2026-05-18T11:00:00Z"
+}
+```
+
+- Replay / already-consumed → `REFRESH_TOKEN_REUSED` (401). See [auth architecture](../architecture/auth.md#rotation-and-replay-protection-t103) for the full flow.
+- Missing / invalid signature → `TOKEN_INVALID` (401).
+- Past `exp` → `TOKEN_EXPIRED` (401).
+
+Browser clients may send the refresh token via the `tr_refresh` cookie instead of the body; the endpoint accepts whichever is present (not both).
+
+### `POST /api/v1/auth/forgot-password`
+
+Start the password-reset flow. **Always returns 202**, regardless of whether the email exists — this is deliberate so an attacker cannot enumerate valid accounts.
+
+```http
+POST /api/v1/auth/forgot-password
+Content-Type: application/json
+
+{ "email": "me@example.com" }
+
+HTTP/1.1 202 Accepted
+```
+
+- Side-effect: if the email matches a user, sends a reset email with a single-use, Argon2id-hashed token.
+- No error responses (rate-limited like every unauthenticated endpoint — see [rate-limits](rate-limits.md)).
+
+### `POST /api/v1/auth/reset-password`
+
+Consume the reset token and set a new password.
+
+```http
+POST /api/v1/auth/reset-password
+Content-Type: application/json
+
+{ "token": "<opaque>", "newPassword": "new correct horse battery staple" }
+
+HTTP/1.1 204 No Content
+```
+
+- Invalid / expired / already-used token → `INVALID_CREDENTIALS` (401).
+- Weak password (policy: ≥ 12 chars) → `VALIDATION_FAILED` (400).
+- On success, every active refresh token for the user is invalidated — the user must re-login.
+
+## JWT structure
+
+Access tokens are compact-serialized, RS256-signed JWTs. Claims:
+
+| Claim | Type | Meaning |
+|---|---|---|
+| `iss` | string | `"translately"` by default |
+| `aud` | string | `"translately-webapp"` by default |
+| `sub` | string | user ULID |
+| `upn` | string | user email (the User Principal Name) |
+| `scope` | string | space-separated scope tokens |
+| `groups` | string[] | same scope tokens, array form |
+| `orgs` | object[] | `[{id, slug, role}, …]` |
+| `typ` | `"access"` | distinguishes from refresh |
+| `iat` / `exp` | int | epoch seconds |
+
+Refresh tokens carry only `iss`, `aud`, `sub`, `jti`, `typ="refresh"`, `iat`, `exp`.
+
+See [auth architecture](../architecture/auth.md#jwt-format) for the full schema and rotation flow.
+
+## Using a credential on a protected endpoint
+
+```bash
+curl -H "Authorization: Bearer $ACCESS" \
+     https://api.example.com/api/v1/organizations/acme/projects
+
+# API key variant
+curl -H "Authorization: ApiKey tr_apikey_abc_1234..." \
+     https://api.example.com/api/v1/organizations/acme/projects
+```
+
+Responses always carry [rate-limit headers](rate-limits.md#response-headers), and on 403 emit the [`INSUFFICIENT_SCOPE` envelope](errors.md#insufficient_scope) plus `WWW-Authenticate: Bearer error="insufficient_scope" scope="…"` when the caller authenticated via bearer.
+
+## Minting API keys and PATs
+
+The mint endpoint is authenticated — only an owner / admin can mint API keys; any user can mint a PAT for themselves. Scopes on the new credential are **intersected** with the caller's current scope set (you can't mint something you don't hold).
+
+Both flows return the full secret **exactly once**, in the `201 Created` response. The secret is Argon2id-hashed before persistence; there is no "reveal" endpoint.
+
+```http
+POST /api/v1/organizations/acme/api-keys
+Authorization: Bearer <access-jwt>
+Content-Type: application/json
+
+{
+  "name":   "CI publisher",
+  "scopes": ["keys.read", "keys.write", "translations.write", "imports.write"]
+}
+
+HTTP/1.1 201 Created
+Location: /api/v1/organizations/acme/api-keys/01HT...
+Content-Type: application/json
+
+{
+  "id":     "01HT...",
+  "prefix": "tr_apikey_9zF4n6",
+  "secret": "tr_apikey_9zF4n6_aBcDeFgHiJkLmN...",
+  "scopes": ["keys.read", "keys.write", "translations.write", "imports.write"],
+  "createdAt": "2026-04-18T10:45:00Z"
+}
+```
+
+Save the `secret` somewhere safe — the server never shows it again.
+
+## OpenAPI
+
+The authoritative machine-readable spec is at [`openapi.json`](openapi.json). Every endpoint on this page carries its `@Operation` + `@APIResponses` annotations; regenerating the spec is part of every API PR (T113).
 
 
 <!-- ===== FILE: api/errors.md ===== -->
 
 # Error-code catalogue
 
-> **Status:** placeholder. Filled in by [Phase 1 API back-fill](https://github.com/Pratiyush/translately/milestone/2) under Phase 1 doc back-fill.
+Every 4xx / 5xx response from the Translately API carries a uniform envelope. `error.code` is **stable across minor versions** — CLIs, SDKs, and the webapp match on it rather than parsing the human-readable message.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T108](https://github.com/Pratiyush/translately/issues/133) (scope authorization + envelope).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related: [API conventions steering](../../.kiro/steering/api-conventions.md), [scopes](scopes.md), [auth](auth.md).
+
+## Envelope shape
+
+```json
+{
+  "error": {
+    "code": "KEY_NAME_TAKEN",
+    "message": "A key named \"home.title\" already exists in this namespace.",
+    "details": {
+      "keyName": "home.title",
+      "namespaceId": "01HT7F8..."
+    },
+    "traceId": "01HT7F8..."
+  }
+}
+```
+
+- **`code`** — `SCREAMING_SNAKE_CASE`, stable, machine-readable. Never renamed; new codes are added, old codes are deprecated.
+- **`message`** — human-readable English. The webapp i18ns from `code`, never from `message`.
+- **`details`** — optional structured context. Shape varies per code; documented below.
+- **`traceId`** — request id, always present, matches the server log entry. Pass this back when reporting issues.
+
+Content type: `application/json; charset=utf-8`. HTTP status is driven by the code (see the rightmost column below).
+
+## Catalogue
+
+### Authentication — 401
+
+| Code | Meaning | Typical `details` | Introduced |
+|---|---|---|---|
+| `UNAUTHENTICATED` | No credential on the request | — | Phase 1 |
+| `INVALID_CREDENTIALS` | Wrong email + password, bad API key, or expired PAT | — | Phase 1 / T103 |
+| `TOKEN_EXPIRED` | Access JWT or refresh JWT past `exp` | `{ "expiredAt": "2026-04-18T10:00:00Z" }` | Phase 1 / T104 |
+| `TOKEN_INVALID` | Signature mismatch or malformed JWT | — | Phase 1 / T104 |
+| `REFRESH_TOKEN_REUSED` | Replay of a consumed refresh token — invalidates **every** refresh token belonging to the user | `{ "userId": "…" }` | Phase 1 / T103 |
+| `EMAIL_NOT_VERIFIED` | Valid credential but the user hasn't clicked the verify link | `{ "email": "…" }` | Phase 1 / T103 |
+
+### Authorization — 403
+
+| Code | Meaning | Typical `details` | Introduced |
+|---|---|---|---|
+| `INSUFFICIENT_SCOPE` | Authenticated but missing a required scope | `{ "required": […], "missing": […] }` | Phase 1 / T108 |
+| `FORBIDDEN` | Generic forbidden — caller has every required scope but the resource-level policy rejected (e.g. cross-org access) | — | Phase 1 |
+
+#### `INSUFFICIENT_SCOPE` in detail
+
+Exact response body from [`InsufficientScopeExceptionMapper`](../../backend/api/src/main/kotlin/io/translately/api/security/InsufficientScopeExceptionMapper.kt):
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_SCOPE",
+    "message": "Missing required scope(s): keys.write",
+    "details": {
+      "required": ["keys.read", "keys.write"],
+      "missing":  ["keys.write"]
+    }
+  }
+}
+```
+
+- HTTP status: **403 Forbidden**.
+- `Content-Type: application/json`.
+- The [OAuth 2.0 `WWW-Authenticate: Bearer error="insufficient_scope" scope="…"` header](https://www.rfc-editor.org/rfc/rfc6750#section-3) is emitted by the filter when the caller authenticated via bearer JWT, so compliant OAuth clients can observe it.
+- Both `required` and `missing` are sorted alphabetically for deterministic diffs in logs / tests.
+
+### Validation — 400 / 422
+
+| Code | Meaning | Typical `details` | Introduced |
+|---|---|---|---|
+| `VALIDATION_FAILED` | Field-level validation errors on the request body | `{ "fields": [{ "path": "body.email", "code": "REQUIRED" }, …] }` | Phase 1 |
+| `PAGE_TOO_LARGE` | `limit` exceeds 200 | `{ "limit": 500, "max": 200 }` | Phase 1 |
+| `INVALID_SORT_FIELD` | `sort=field` references a non-whitelisted field | `{ "field": "createdAt" }` | Phase 1 |
+| `ICU_MESSAGE_INVALID` | Semantic validation failure from `icu4j` (422) | `{ "position": 17, "reason": "Expected '}'" }` | Phase 2 |
+| `MALFORMED_JSON` | Request body isn't valid JSON (400) | — | Phase 1 |
+
+### Resource state — 404 / 409 / 410
+
+| Code | Meaning | Typical `details` |
+|---|---|---|
+| `NOT_FOUND` | Resource not found, **or** auth prevents disclosing existence | — |
+| `KEY_NAME_TAKEN` | Unique constraint: key name already exists in this namespace | `{ "keyName": "…" , "namespaceId": "…" }` |
+| `ORG_SLUG_TAKEN` | Org slug already used globally | `{ "slug": "…" }` |
+| `PROJECT_SLUG_TAKEN` | Project slug already used in this org | `{ "slug": "…", "orgId": "…" }` |
+| `VERSION_CONFLICT` | Optimistic-locking: stored version differs from submitted | `{ "expected": 5, "actual": 7 }` |
+| `GONE` | Resource soft-deleted and past retention (410) | — |
+
+### Rate-limiting — 429
+
+| Code | Meaning | Typical `details` |
+|---|---|---|
+| `RATE_LIMIT_EXCEEDED` | Per-token sliding-window cap hit | `{ "limit": 120, "windowSeconds": 60, "retryAfterSeconds": 12 }` |
+
+Every 429 response carries the [`Retry-After` header](rate-limits.md#retry-headers).
+
+### Server / dependency — 500 / 503
+
+| Code | Meaning | Typical `details` |
+|---|---|---|
+| `INTERNAL_ERROR` | Unhandled exception; always logs a stack trace with `traceId` | — |
+| `DEPENDENCY_UNAVAILABLE` | Redis / S3 / Mailpit / DB unreachable | `{ "dependency": "redis" }` |
+
+## Never-log rule
+
+The uniform envelope **never** includes:
+
+- `Authorization` header values, API keys, PATs, refresh tokens, password hashes, BYOK AI keys.
+- Request bodies for authenticated endpoints.
+- Webhook bodies.
+
+See the steering rule in [`.kiro/steering/api-conventions.md`](../../.kiro/steering/api-conventions.md#logging).
+
+## For SDK authors
+
+- Expose `error.code` as a typed enum; tolerate unknown values (forward-compat).
+- Surface `error.message` to humans untranslated; localise via the `code` using your own catalogue.
+- Surface `error.details` in its structured form — don't try to flatten.
+- On `RATE_LIMIT_EXCEEDED` / `DEPENDENCY_UNAVAILABLE`, implement exponential backoff; honour `Retry-After`.
+- On `REFRESH_TOKEN_REUSED`, invalidate local state and force a re-login — this is a security signal, not a retryable error.
+
+## Deprecation
+
+Deprecated codes return with the body unchanged plus response headers:
+
+```
+Deprecation: true
+Sunset: Sat, 01 Nov 2026 00:00:00 GMT
+Link: <https://github.com/Pratiyush/translately/blob/master/docs/api/errors.md#deprecated>; rel="deprecation"
+```
+
+Announced in [`CHANGELOG.md`](../../CHANGELOG.md) under `### Deprecated` at the release the deprecation lands, moved to `### Removed` at the sunset release.
 
 
 <!-- ===== FILE: api/rate-limits.md ===== -->
 
 # Rate limits
 
-> **Status:** placeholder. Filled in by [Phase 1 API back-fill](https://github.com/Pratiyush/translately/milestone/2) under Phase 1 doc back-fill.
+Translately rate-limits every request. Limits are **per-token** (JWT subject, API key, PAT, or anonymous IP) and enforced through a Redis sliding window. The goal is to keep self-hosted instances responsive under accidental loops and genuinely-hostile traffic, not to nickel-and-dime legitimate callers.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: lays down in Phase 1 alongside the auth endpoints; takes effect as endpoints go live.
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related: [API conventions steering](../../.kiro/steering/api-conventions.md), [error codes](errors.md#rate-limiting--429), [scopes](scopes.md).
+
+## Default limits
+
+| Traffic class | Limit | Window |
+|---|---|---|
+| Authenticated read (`GET`, `HEAD`, `OPTIONS`) | **600 req/min** | 60 s sliding |
+| Authenticated write (`POST`, `PUT`, `PATCH`, `DELETE`) | **120 req/min** | 60 s sliding |
+| AI suggest (`POST /suggest-translation`, batch equivalents) | **60 req/min** | 60 s sliding + per-project monthly budget cap |
+| Unauthenticated (signup, login, forgot-password, refresh) | **10 req/min per IP** | 60 s sliding |
+| Webhook inbound (Phase 6, if enabled) | **60 req/min per webhook** | 60 s sliding |
+
+Rate-limit state lives in Redis under the `rl:` key prefix, keyed by credential prefix + route group. Evictions run automatically via Redis TTLs; no application housekeeping required.
+
+## Response headers
+
+Every response (successful and rate-limited) carries:
+
+```
+X-RateLimit-Limit:     600
+X-RateLimit-Remaining: 582
+X-RateLimit-Reset:     17
+```
+
+- `X-RateLimit-Limit` — the current class's request cap.
+- `X-RateLimit-Remaining` — requests still available in the current window.
+- `X-RateLimit-Reset` — seconds until the window rolls forward.
+
+## Retry headers
+
+A rate-limited request returns HTTP `429 Too Many Requests` with the [error envelope](errors.md#rate-limiting--429):
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 12
+Content-Type: application/json
+
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Rate limit exceeded.",
+    "details": {
+      "limit": 120,
+      "windowSeconds": 60,
+      "retryAfterSeconds": 12
+    }
+  }
+}
+```
+
+`Retry-After` is integer seconds, never a date (keeps parsing simple for CLIs).
+
+## For SDKs and callers
+
+- **Respect `Retry-After`.** Don't back off blindly; the server already tells you when the next slot opens.
+- **Use a single persistent client per credential.** Short-lived curl scripts that reconnect per request hit the unauthenticated limit even when they don't mean to.
+- **Batch where you can.** Write endpoints accept batch payloads (`POST /keys/bulk`, `POST /translations/bulk`) specifically so you don't have to burn a write slot per row.
+- **Backoff sensibly on 5xx.** A `429` is a rate-limit signal; a `500` / `503` means retry the request later with exponential backoff.
+
+## Operator tuning
+
+Each limit is a config property under `translately.rate-limit.*` in [`application.properties`](../../backend/app/src/main/resources/application.properties). Override via env var:
+
+```
+TRANSLATELY_RATE_LIMIT_AUTHENTICATED_READ=1200
+TRANSLATELY_RATE_LIMIT_AUTHENTICATED_WRITE=300
+TRANSLATELY_RATE_LIMIT_AI_SUGGEST=120
+TRANSLATELY_RATE_LIMIT_UNAUTHENTICATED=20
+```
+
+Set a limit to `0` to disable rate-limiting for that class (self-hosters on a trusted LAN sometimes want this).
+
+Rate-limit metrics are exposed at `/q/metrics`:
+
+- `http_server_requests_seconds_count{status="429"}` — rejected count per route group.
+- `translately_rate_limit_remaining{class="…"}` — gauge of the **minimum** remaining budget across active keys per class.
+
+## Why sliding window, not token bucket?
+
+Token buckets are cheaper but give bursty callers a better experience than we want to advertise: a legitimate caller who paces their requests shouldn't be punished because someone else burst. The sliding window gives a fair view of the last minute at the cost of a handful of Redis commands per request — an acceptable trade on the authenticated path.
+
+## BYOK AI budget interaction
+
+AI Suggest requests consume two budgets:
+
+1. **Rate limit** — 60 req/min per credential (this page).
+2. **Per-project monthly cost cap** — set by `AI_CONFIG_WRITE`, enforced in service code before the provider call.
+
+Hitting the budget cap returns `AI_BUDGET_EXCEEDED` (403) **before** any provider network call is made. The rate-limit and budget are independent; you can exhaust one without touching the other.
+
+## See also
+
+- Rate-limit headers on every response — not only on 429. Use them to self-pace proactively.
+- [`docs/api/errors.md`](errors.md) for the full response shape.
+- [Self-host hardening](../self-hosting/hardening.md) for the reverse-proxy configuration that caps payload size before it reaches Translately.
 
 
 <!-- ===== FILE: api/scopes.md ===== -->
 
 # Permission scopes
 
-> **Status:** placeholder. Filled in by [T108-docs](https://github.com/Pratiyush/translately/issues/133) under Phase 1 doc back-fill.
+Every protected endpoint in the Translately API declares the scope(s) a caller must hold. Scopes are the atomic unit of authorization — API keys and PATs carry scope sets directly, user JWTs derive them from organization-role membership.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T108](https://github.com/Pratiyush/translately/issues/133) (scope enum + `@RequiresScope` + filter), [T109](https://github.com/Pratiyush/translately/issues/27) (role → scope resolver).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related: [authorization architecture](../architecture/authorization.md), [error codes](errors.md).
+
+## Naming
+
+Each scope is a dotted, lowercase token: `<domain>.<action>` where `<action>` is `read` or `write` (with one exception: `ai.suggest`).
+
+- `write` **implies** `read` at resolver time: `keys.write` passes a `keys.read` check.
+- Scopes are **stable across minor versions**. Add new ones, deprecate old ones, remove one minor later. Never rename.
+- On the wire, scopes serialize as a **space-separated string** (the same grammar OAuth 2.0 uses):
+  - In JWTs — the `scope` claim (`"scope": "keys.read keys.write translations.write"`) plus a mirrored `groups` array for `@RolesAllowed` interop.
+  - In API keys and PATs — the `api_keys.scopes` / `personal_access_tokens.scopes` `VARCHAR(512)` column.
+
+## Catalogue
+
+The full 31-token catalogue is defined in [`io.translately.security.Scope`](../../backend/security/src/main/kotlin/io/translately/security/Scope.kt). Tokens are grouped by domain:
+
+### Organization + membership
+
+| Token | Purpose | Introduced |
+|---|---|---|
+| `org.read` | Read organization metadata | Phase 1 |
+| `org.write` | Rename / update organization | Phase 1 |
+| `members.read` | List organization members | Phase 1 |
+| `members.write` | Invite / remove members, change roles | Phase 1 |
+| `api-keys.read` | List API keys (prefix + metadata only) | Phase 1 |
+| `api-keys.write` | Mint / revoke API keys | Phase 1 |
+| `audit.read` | Read audit log entries | Phase 7 |
+
+### Project-wide
+
+| Token | Purpose | Introduced |
+|---|---|---|
+| `projects.read` | List and read projects in an org | Phase 1 |
+| `projects.write` | Create / archive projects | Phase 1 |
+| `project-settings.write` | Rename / reconfigure / delete a project | Phase 1 |
+
+### Keys + translations (Phase 2)
+
+| Token | Purpose |
+|---|---|
+| `keys.read` | List keys, read metadata |
+| `keys.write` | Create / edit / delete keys, namespaces, tags |
+| `translations.read` | Read translation values |
+| `translations.write` | Author / edit translations |
+
+### Imports + exports (Phase 3)
+
+| Token | Purpose |
+|---|---|
+| `imports.write` | Upload, preview, and run JSON imports |
+| `exports.read` | Generate export bundles |
+
+### AI / MT + TM (Phase 4)
+
+| Token | Purpose |
+|---|---|
+| `ai.suggest` | Invoke AI-suggest on a key or batch (BYOK) |
+| `ai-config.write` | Configure provider, model, key, budget |
+| `tm.read` | Read translation-memory matches |
+| `glossaries.read` | Read glossary entries |
+| `glossaries.write` | Create / edit glossary entries |
+
+### Screenshots (Phase 5)
+
+| Token | Purpose |
+|---|---|
+| `screenshots.read` | Read screenshots pinned to keys |
+| `screenshots.write` | Upload + pin screenshots |
+
+### Webhooks + CDN (Phase 6)
+
+| Token | Purpose |
+|---|---|
+| `webhooks.read` | Read webhook configs + delivery log |
+| `webhooks.write` | Create / edit / disable webhooks |
+| `cdn.read` | Read CDN bundle config + URLs |
+| `cdn.write` | Configure CDN content |
+
+### Tasks + branching (Phase 7)
+
+| Token | Purpose |
+|---|---|
+| `tasks.read` | Read translation tasks |
+| `tasks.write` | Create / assign / close tasks |
+| `branches.read` | Read translation branches |
+| `branches.write` | Create / merge / delete branches |
+
+## Role → scope mapping
+
+The three built-in organization roles map to curated scope sets via `ScopeResolver`:
+
+| Role | Scope set |
+|---|---|
+| **OWNER** | every scope in the catalogue — new scopes default to OWNER so we never forget to grant them |
+| **ADMIN** | OWNER minus `project-settings.write`, `ai-config.write`, `api-keys.write` (retains `audit.read`) |
+| **MEMBER** | every `*.read` scope plus `keys.write`, `translations.write`, `imports.write`, `ai.suggest` |
+
+Invariant: `OWNER ⊃ ADMIN ⊃ MEMBER`. Enforced by `OrgRoleScopesTest`.
+
+See [`docs/architecture/authorization.md`](../architecture/authorization.md) for the rationale behind the ADMIN exclusion list.
+
+## How a scope is checked
+
+1. The authenticator (JWT / API key / PAT) resolves the caller's full scope set into `SecurityScopes`.
+2. [`ScopeAuthorizationFilter`](../../backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) reads the `@RequiresScope(...)` annotation on the target resource method.
+3. If `SecurityScopes ⊇ required`, the request continues; otherwise the filter throws `InsufficientScopeException`.
+4. [`InsufficientScopeExceptionMapper`](../../backend/api/src/main/kotlin/io/translately/api/security/InsufficientScopeExceptionMapper.kt) serialises that to a 403 with the [`INSUFFICIENT_SCOPE`](errors.md#insufficient_scope) envelope.
+
+Multiple scopes on `@RequiresScope(A, B)` are an **AND** — the caller must hold every listed scope. If you need OR semantics, document it explicitly in the endpoint and express the alternative in code; don't overload the annotation.
+
+## Minting API keys and PATs with scopes
+
+When a user mints an API key (T110), they pick a subset of the scopes **they currently hold** (intersected with the org role). A MEMBER cannot mint an API key carrying `api-keys.write` — they don't have it themselves. This intersection rule is enforced service-side, not UI-side; the UI hints but the server decides.
+
+## Forward compatibility
+
+- **Adding a scope.** New scope lands in the enum and on OWNER by default. ADMIN and MEMBER pick up read scopes automatically (any `*.read` joins MEMBER) and opt-in for writes.
+- **Deprecating a scope.** Mark it deprecated in the enum + `CHANGELOG` under the release it lands. Keep it in responses for one minor version; remove under `### Removed` in the sunset release.
+- **Unknown scopes in JWTs.** `Scope.parse` silently drops tokens it doesn't recognize — forward-compat for the case where an older server verifies a token minted by a newer one.
+
+## OpenAPI surface
+
+Every endpoint in [`openapi.json`](openapi.json) carries an `x-required-scopes` extension listing the scopes its handler annotated with `@RequiresScope`. Generated SDK clients lift this into their types so IDE completion can surface the requirement at call sites.
 
 
 <!-- ===== FILE: api/versioning.md ===== -->
 
 # API versioning
 
-> **Status:** placeholder. Filled in by [Phase 1 API back-fill](https://github.com/Pratiyush/translately/milestone/2) under Phase 1 doc back-fill.
+The Translately REST API is versioned in the **URL path**: every endpoint lives under `/api/v1/`. This page documents what is and isn't a breaking change, how deprecations roll out, and the client-compatibility contract.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Related: [API conventions steering](../../.kiro/steering/api-conventions.md), [error codes](errors.md), [changelog](../../CHANGELOG.md).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+## Contract
+
+> **One live major version at a time, with a one-minor-version overlap when a `v2` ships.** Additive changes never bump the version. Breaking changes bump the path.
+
+- **`v1` is the current surface.** Every Phase 0–7 ticket lands here. A hypothetical `v2` happens only when a change cannot be expressed without breaking a published shape — and even then, we prefer a differently-named endpoint inside `v1` over a whole-API bump.
+- **When `v2` ships**, `v1` remains served, unchanged, for at least one minor-version overlap. Clients get a `Deprecation: true` header on `v1` responses from that release forward.
+- **No `Accept` header version negotiation.** The path is authoritative. Clients don't have to invent plumbing to pass a custom media type.
+
+## What counts as breaking
+
+| Change | Breaking? |
+|---|---|
+| Add an optional request field | **No** |
+| Add a required request field with a default | **No** (treat as additive) |
+| Add a required request field without a default | **Yes** |
+| Add a new response field | **No** — clients must tolerate unknown fields |
+| Add a new enum value | **No** — clients must tolerate unknown values (see below) |
+| Remove a response field | **Yes** |
+| Rename a response field | **Yes** |
+| Change a response field's type or semantics | **Yes** |
+| Add a new status code (e.g. 202 where 200 was returned) | **Yes** |
+| Tighten validation on an existing endpoint | **Yes** |
+| Add a new endpoint | **No** |
+| Remove an endpoint | **Yes** |
+| Rename an endpoint path | **Yes** (serve the old path for the deprecation window) |
+| Add a new `error.code` value | **No** — clients must tolerate unknowns |
+| Remove / rename an `error.code` value | **Yes** |
+
+Additive enum and error-code values are *never* breaking. This is a hard contract — SDKs and the webapp are written with `default` branches and "unknown" mappings.
+
+## Deprecation workflow
+
+When a field, endpoint, or error code is on its way out:
+
+1. **Mark deprecated in the source** — field-level `@Deprecated` / JSDoc comment on the SDK, matching entry in `CHANGELOG.md` under `### Deprecated` in the release the deprecation lands.
+2. **Ship the [Deprecation / Sunset headers](https://www.rfc-editor.org/rfc/rfc8594)** on every affected response:
+
+   ```
+   Deprecation: true
+   Sunset: Sat, 01 Nov 2026 00:00:00 GMT
+   Link: <https://github.com/Pratiyush/translately/blob/master/docs/api/errors.md#deprecated>; rel="deprecation"
+   ```
+3. **Cross-link from the docs.** The migration path lives under [`docs/migration/`](../../docs) when cross-version migration is needed.
+4. **Sunset at the announced release.** Move the CHANGELOG entry from `### Deprecated` to `### Removed`.
+
+Minimum deprecation window: **one minor version**. Longer for anything SDK consumers are likely to hit.
+
+## Client forward-compatibility rules
+
+- **Unknown response fields** — ignore silently. Do not fail on extra keys.
+- **Unknown enum values** — map to a `"unknown"` / `"other"` sentinel in the client; do not throw. The webapp renders unknowns as "Unsupported value — update the app".
+- **Unknown `error.code`** — log with the `code` string, surface the `message` to the user, treat as a generic failure. Don't branch on `code` without a default.
+- **Unknown status codes** — treat `2xx` as success, `4xx` as client error, `5xx` as server error, with appropriate fallback messaging.
+- **Missing optional fields** — treat as `null` / absent rather than the default of some prior version. Don't synthesize values you didn't receive.
+
+These rules also apply to SDK regeneration: when the committed [`openapi.json`](openapi.json) gains a field, SDK callers pick it up automatically; losing a field is the breaking-change path above.
+
+## OpenAPI compatibility
+
+- The source of truth is Quarkus's Smallrye OpenAPI generation at build time.
+- [`docs/api/openapi.json`](openapi.json) is committed and regenerated on every API change (T113).
+- Every resource method must carry `@Operation`, `@APIResponses`, and request / response schemas — CI fails the build if any is missing.
+- Client SDKs (`@translately/js` in Phase 5+) are generated from the committed `openapi.json` via `openapi-typescript`; regenerating the SDK as part of the API PR means types and runtime can't drift.
+
+## Version in response bodies
+
+Responses do **not** carry an explicit `apiVersion` field — the version is in the URL. Adding one would only be useful for negotiating between `v1` and `v2` at the payload level, which the path-versioning strategy explicitly avoids.
+
+## Why path-versioning, not header?
+
+Header-based versioning (`Accept: application/vnd.translately.v1+json`) is elegant in theory and a nightmare in practice:
+
+- Browser tabs and `curl` commands can't hit it without plumbing.
+- CDN caching layers ignore custom `Accept` values by default.
+- Observability tools (log aggregators, Grafana, Sentry) don't see the version dimension.
+- Clients get the version wrong more often than they get the path wrong.
+
+Path-versioning keeps a curl one-liner copy-pasteable and makes the `v1` → `v2` cutover visible to everyone reading the logs. We optimize for operational clarity.
+
+## See also
+
+- [`CHANGELOG.md`](../../CHANGELOG.md) — every release documents its Added / Changed / Deprecated / Removed / Fixed / Security sections.
+- [Error catalogue](errors.md) — the stable-across-versions contract.
+- [`.kiro/steering/api-conventions.md`](../../.kiro/steering/api-conventions.md) — the authoritative steering version of this page.
 
 
 <!-- ===== FILE: architecture/README.md ===== -->
@@ -694,6 +1317,76 @@ erDiagram
 Only `users`, `organizations`, and `projects` soft-delete. Rationale: retention regulations (GDPR deletion requests, SOC2 audit history) push in opposite directions; we keep the row long enough that an undo is cheap and the audit trail intact, then periodically hard-delete.
 
 Anything referenced via `FOREIGN KEY … ON DELETE CASCADE` hard-deletes automatically — that's the default for tokens, memberships, project-languages, api-keys, and PATs. A soft-deleted `users` row does *not* cascade: the service layer decides when to fully purge.
+
+## V1 migration story
+
+[`V1__auth_and_orgs.sql`](../../backend/data/src/main/resources/db/migration/V1__auth_and_orgs.sql) is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
+
+### Creation order
+
+Flyway applies the migration as a single transaction. Tables are created top-down so child FKs always have their parent present:
+
+1. `users` — no FK.
+2. `organizations` — no FK.
+3. `organization_members` — FKs to `organizations`, `users`.
+4. `projects` — FK to `organizations`.
+5. `project_languages` — FK to `projects`.
+6. `api_keys` — FK to `projects`.
+7. `personal_access_tokens` — FK to `users`.
+
+Indexes and `CHECK` constraints are declared inline with each table. No data seeding — the first user is created through the signup endpoint (T103), never via SQL.
+
+### `ON DELETE CASCADE` coverage
+
+Every child FK cascades:
+
+| Child table | Parent | Cascade effect |
+|---|---|---|
+| `organization_members` | `organizations.id` | Org hard-delete removes every membership row. |
+| `organization_members` | `users.id` | User hard-delete removes every membership row the user held. |
+| `projects` | `organizations.id` | Org hard-delete removes every project. |
+| `project_languages` | `projects.id` | Project delete removes every language. |
+| `api_keys` | `projects.id` | Project delete revokes every key by deletion. |
+| `personal_access_tokens` | `users.id` | User hard-delete revokes every PAT. |
+
+Three top-level tables (`users`, `organizations`, `projects`) carry `deleted_at TIMESTAMPTZ` for soft-delete. A soft delete does **not** cascade — the row sticks around, referencing data stays intact. A later hard-delete (triggered when the service layer decides retention has expired) cascades through the FKs above.
+
+### `CHECK` constraints
+
+Enum-like columns use `VARCHAR(n)` plus a `CHECK` constraint. Migrating the enum values later is a cheap `ALTER TABLE … DROP CONSTRAINT … ADD CONSTRAINT`.
+
+| Table | Column | Allowed values | Rationale |
+|---|---|---|---|
+| `organization_members` | `role` | `OWNER`, `ADMIN`, `MEMBER` | Matches `io.translately.data.entity.OrganizationRole`; mirrored in security's `OrgRole`. |
+| `project_languages` | `direction` | `LTR`, `RTL` | UI-relevant only; covers every language in CLDR `v45`. |
+| `projects` | `ai_provider` | `NULL`, `ANTHROPIC`, `OPENAI`, `OPENAI_COMPATIBLE` | BYOK providers; `NULL` means no AI wired (the default, per CLAUDE.md). |
+| `projects` | `ai_budget_cap_usd_monthly` | `NULL` or `>= 0` | Prevent accidental negative budgets that would bypass the cap. |
+
+Every CHECK has at least one integration-test assertion in `MigrationV1Test` that inserts a violating row and confirms the database rejects it — the constraint is the contract, the test is the proof.
+
+### Unique constraints
+
+| Table | Columns | Why |
+|---|---|---|
+| all tables | `external_id` | ULID is the public identifier; collisions would leak via URLs |
+| `users` | `email` | One account per email |
+| `organizations` | `slug` | Slugs are global; URL-sharability |
+| `organization_members` | `(organization_id, user_id)` | A user has one role per org |
+| `projects` | `(organization_id, slug)` | Slugs collide freely across orgs; not within |
+| `api_keys` | `prefix` | Lookups are by prefix; must be unique globally |
+| `personal_access_tokens` | `prefix` | Same as API keys |
+
+### Hot-path indexes
+
+Beyond the uniques, V1 creates five covering indexes chosen for the first authenticated flows:
+
+- `idx_users_email_verified` partial index `WHERE email_verified_at IS NOT NULL` — the "send-me-emails" query pattern.
+- `idx_org_members_user` — "what orgs is this user in?" on login.
+- `idx_projects_organization` — "list projects in this org" on dashboard.
+- `idx_project_languages_project` — "what languages does this project support?" on the translation UI.
+- `idx_api_keys_project` and `idx_pats_user` — credential listing for the UI.
+
+Anything else can run off the uniques / PKs; we'll add more indexes in later phases as real query patterns emerge, never speculatively.
 
 ## Future migrations
 
