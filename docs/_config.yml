@@ -83,20 +83,16 @@ readme_index:
   remove_originals: false
   with_frontmatter: true
 
-# Exclude from the Jekyll build
+# Exclude from the Jekyll build.
+# NOTE: Files listed here are dropped from _site entirely. Do NOT list files
+# the site needs to serve (e.g. downloads/translately-docs.zip, llms.txt,
+# llms-full.txt) — Jekyll copies unknown file types through by default.
 exclude:
   - Gemfile
   - Gemfile.lock
   - vendor/
   - node_modules/
-  - downloads/translately-docs.zip # referenced, not rendered
-  - llms.txt
-  - llms-full.txt
-  - README.md
-
-# Include dot-files we want served (none today, but reserved).
-include:
-  - llms.txt
+  - README.md # repo-facing; docs/index.md is the site root
   - llms-full.txt
 
 # Default layout for any page without an explicit one.
