@@ -63,6 +63,12 @@ jobs:
       - name: Lint
         run: pnpm --filter @translately/webapp lint
 
+      - name: OpenAPI codegen up-to-date
+        # Regenerates src/lib/api/types.gen.ts from the committed
+        # docs/api/openapi.json and fails fast if the committed output
+        # drifts. Mirrors the backend's checkOpenApiUpToDate (T113).
+        run: pnpm --filter @translately/webapp codegen:check
+
       - name: Test
         run: pnpm --filter @translately/webapp test -- --run
 

@@ -5,3 +5,5 @@ coverage
 pnpm-lock.yaml
 src/components/ui
 public
+# Auto-generated OpenAPI types — regen via `pnpm codegen`, not hand-formatted.
+src/lib/api/types.gen.ts
