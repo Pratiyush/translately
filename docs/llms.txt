@@ -1,0 +1,40 @@
+# Translately
+
+> Open-source, MIT-licensed, self-hosted localization and translation management platform. Quarkus + Kotlin backend, React + Vite webapp, PostgreSQL + Redis + MinIO. Bring-your-own-key AI is entirely optional; every "premium" feature (SSO, SAML, LDAP, Tasks, Branching, Glossaries, Webhooks, CDN, audit) ships free.
+
+The canonical LLM-ingestible corpus for Translately's documentation, generated from the `docs/` tree per the [llmstxt.org](https://llmstxt.org) standard. Regenerate with `scripts/gen-llms-txt.sh` whenever `docs/` changes — CLAUDE.md rule #10 requires it.
+
+## Product
+
+- [Product docs index](https://pratiyush.github.io/translately/product/): User-visible feature walkthroughs
+- [Application shell](https://pratiyush.github.io/translately/product/app-shell.md): Nav, org switcher, user menu, routing
+- [Theming](https://pratiyush.github.io/translately/product/theming.md): Light / dark / system toggle + persistence
+- [Authentication](https://pratiyush.github.io/translately/product/auth.md): Signup, email verify, login, password reset
+
+## API
+
+- [API overview](https://pratiyush.github.io/translately/api/): Conventions, error envelope, pagination, IDs
+- [OpenAPI 3.1 spec](https://pratiyush.github.io/translately/api/openapi.json): Machine-readable source of truth
+- [Scopes](https://pratiyush.github.io/translately/api/scopes.md): Permission scope matrix
+- [Error codes](https://pratiyush.github.io/translately/api/errors.md): Stable `error.code` catalogue
+- [Rate limits](https://pratiyush.github.io/translately/api/rate-limits.md): Per-token and per-endpoint policy
+- [Versioning](https://pratiyush.github.io/translately/api/versioning.md): URL-path versioning + deprecation policy
+
+## Architecture
+
+- [Architecture index](https://pratiyush.github.io/translately/architecture/): Module map + system overview
+- [ADR index](https://pratiyush.github.io/translately/architecture/decisions/): All accepted decision records
+- [Data model](https://pratiyush.github.io/translately/architecture/data-model.md): ER diagram + relationships
+- [Multi-tenancy](https://pratiyush.github.io/translately/architecture/multi-tenancy.md): TenantContext + row-level isolation
+- [Crypto](https://pratiyush.github.io/translately/architecture/crypto.md): Envelope encryption for BYOK secrets
+
+## Self-hosting
+
+- [Hardening checklist](https://pratiyush.github.io/translately/self-hosting/hardening.md): Production-readiness checklist
+
+## Optional
+
+- [Full corpus (single file)](https://pratiyush.github.io/translately/llms-full.txt): Every doc concatenated for one-shot ingestion
+- [GitHub repository](https://github.com/Pratiyush/translately): Source code
+- [CHANGELOG](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md): Release history
+- [Approved plan](https://github.com/Pratiyush/translately/blob/master/tasks.md): 97-task master list with phase boundaries
