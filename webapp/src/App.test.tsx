@@ -83,7 +83,7 @@ describe('App routing — unauthenticated', () => {
   it('renders the sign-in route directly', () => {
     renderAt('/signin');
     expect(screen.getByTestId('route-sign-in')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en['route.sign-in.title']);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en['auth.signIn.title']);
   });
 });
 
