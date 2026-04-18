@@ -1,0 +1,41 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Translately API",
+    "version": "0.1.0-placeholder",
+    "description": "Placeholder OpenAPI document. Regenerated from the Quarkus backend by T113 (issue #31) before v0.1.0 is tagged. Do not hand-edit.",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/Pratiyush/translately/blob/master/LICENSE"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local dev (docker-compose)"
+    }
+  ],
+  "paths": {
+    "/q/health": {
+      "get": {
+        "summary": "Liveness probe",
+        "responses": {
+          "200": {
+            "description": "Process is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["UP"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {}
+}
