@@ -186,21 +186,29 @@ open class AuthService(
             .resultList
             .firstOrNull()
 
+    /**
+     * Locate an email-verification row by matching the caller-supplied raw
+     * token against every stored Argon2id hash. Returns consumed rows too
+     * so the caller can distinguish `TOKEN_CONSUMED` from `TOKEN_INVALID`
+     * — filtering on `consumedAt IS NULL` here would collapse the two into
+     * `TOKEN_INVALID` and hide replay attempts from UX and audit.
+     */
     private fun findValidEmailVerificationToken(rawToken: String): EmailVerificationToken? {
         val tokens =
             em
                 .createQuery(
-                    "SELECT t FROM EmailVerificationToken t WHERE t.consumedAt IS NULL ORDER BY t.id DESC",
+                    "SELECT t FROM EmailVerificationToken t ORDER BY t.id DESC",
                     EmailVerificationToken::class.java,
                 ).resultList
         return tokens.firstOrNull { passwordHasher.verify(rawToken, it.tokenHash) }
     }
 
+    /** See [findValidEmailVerificationToken] — same rationale. */
     private fun findValidPasswordResetToken(rawToken: String): PasswordResetToken? {
         val tokens =
             em
                 .createQuery(
-                    "SELECT t FROM PasswordResetToken t WHERE t.consumedAt IS NULL ORDER BY t.id DESC",
+                    "SELECT t FROM PasswordResetToken t ORDER BY t.id DESC",
                     PasswordResetToken::class.java,
                 ).resultList
         return tokens.firstOrNull { passwordHasher.verify(rawToken, it.tokenHash) }

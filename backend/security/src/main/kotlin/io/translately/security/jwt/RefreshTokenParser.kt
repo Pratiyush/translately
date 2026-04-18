@@ -1,6 +1,5 @@
 package io.translately.security.jwt
 
-import io.smallrye.jwt.auth.principal.JWTAuthContextInfo
 import io.smallrye.jwt.auth.principal.JWTParser
 import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.config.inject.ConfigProperty
@@ -15,6 +14,13 @@ import org.eclipse.microprofile.jwt.JsonWebToken
  * claims. This class handles that narrowly: signature + issuer + audience
  * + expiry are verified, then `sub`, `jti`, `typ` are exposed to the
  * service layer.
+ *
+ * The parser uses Smallrye's **ambient** `JWTAuthContextInfo` (configured
+ * through the `mp.jwt.verify.*` / `translately.jwt.*` properties wired into
+ * `:backend:app`) so the verification key is picked up automatically.
+ * Constructing a fresh `JWTAuthContextInfo` in-place and passing it in
+ * would drop the verification key, making every valid refresh token fail
+ * signature validation and masquerade as `TOKEN_INVALID`.
  */
 @ApplicationScoped
 open class RefreshTokenParser(
@@ -31,12 +37,9 @@ open class RefreshTokenParser(
      * can render a uniform 401 without caring why.
      */
     open fun parse(rawJwt: String): ParsedRefresh? {
-        val info =
-            JWTAuthContextInfo().apply {
-                issuedBy = issuer
-                expectedAudience = setOf(audience)
-            }
-        val jwt: JsonWebToken = runCatching { parser.parse(rawJwt, info) }.getOrNull() ?: return null
+        val jwt: JsonWebToken = runCatching { parser.parse(rawJwt) }.getOrNull() ?: return null
+        if (jwt.issuer != issuer) return null
+        if (!jwt.audience.orEmpty().contains(audience)) return null
         return buildRefresh(jwt)
     }
 
