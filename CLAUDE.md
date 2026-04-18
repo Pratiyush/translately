@@ -34,6 +34,7 @@ Kiro steering files under [.kiro/steering/](.kiro/steering/) are authoritative f
     - **LLM-ingestible** (`docs/llms.txt` + `docs/llms-full.txt`) — the [llmstxt.org](https://llmstxt.org) standard. Any doc addition/change must regenerate these so LLMs (Claude, Cursor, in-house assistants) can consume the full corpus at `{pages-url}/llms-full.txt`.
 
     Doc-missing PRs are blocked from merge. If a ticket slipped docs in-flight, open a `docs(docs): ...` follow-up in the same milestone before the phase-tag goes out. By v0.3.0 (MVP end) every shipped feature must be fully documented; by v1.0.0 the entire `docs/` tree is the canonical product source-of-truth.
+11. **Repo topics + per-issue labels kept curated.** The GitHub repo's Topics list (set via `gh api repos/.../topics`) drives discoverability — the canonical list lives in [`.kiro/steering/contributing-rules.md#repository-metadata`](.kiro/steering/contributing-rules.md#repository-metadata). Review it at every signed tag and add a topic when a new headline feature ships (e.g. `react` when the webapp goes live, `openapi` when the spec is published). **Every issue** carries `type:*`, `scope:*`, `est:*`, phase-milestone, and `mvp`/`post-mvp`/`deferred` labels before leaving NEW. A PR that creates a new issue without the full label set is blocked at review.
 
 ## Stack cheat-sheet
 

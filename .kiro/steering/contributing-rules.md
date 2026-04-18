@@ -44,6 +44,56 @@ NEW → TRIAGED → READY → IN-PROGRESS → IN-REVIEW → MERGED → RELEASED 
 
 Every issue must carry **type** + **scope** + **phase-milestone** + **estimate** labels before leaving NEW. Estimate labels: `xs` ≤1h, `s` ≤4h, `m` ≤1d, `l` ≤3d, `xl` ≥1w (must be split before READY).
 
+## Repository metadata
+
+Keeping the repo's discoverability surfaces curated is a CLAUDE.md rule (#11). Two things to maintain in lockstep with the stack.
+
+### Repo topics
+
+The GitHub Topics list is the first thing a browser sees on the repo page. The canonical set (15 topics, pinned here):
+
+```
+localization  translation-management  i18n  translation  self-hosted
+open-source   mit-license             quarkus  kotlin     java
+react         typescript              tailwindcss  icu-messageformat  byok
+```
+
+Set / update via the GitHub API:
+
+```bash
+gh api -X PUT repos/Pratiyush/translately/topics \
+  -f 'names[]=localization' -f 'names[]=translation-management' \
+  -f 'names[]=i18n' -f 'names[]=translation' \
+  -f 'names[]=self-hosted' -f 'names[]=open-source' \
+  -f 'names[]=mit-license' -f 'names[]=quarkus' \
+  -f 'names[]=kotlin' -f 'names[]=java' \
+  -f 'names[]=react' -f 'names[]=typescript' \
+  -f 'names[]=tailwindcss' -f 'names[]=icu-messageformat' \
+  -f 'names[]=byok'
+```
+
+**When to edit the list:**
+
+- A new headline capability ships (e.g. add `openapi` alongside T113 going out, `jwt` if we ever front the auth story as a headline).
+- A major stack swap (unlikely, but documented here so the review happens).
+- Every signed tag — the release PR checks the topics list against this file.
+
+GitHub caps at 20 topics; keep headroom. Prefer widely-used GitHub topic slugs (check via <https://github.com/topics>) over bespoke names so search finds us.
+
+### Issue labels
+
+The label taxonomy lives on GitHub (`gh label list`) and breaks into five axes — **every** open issue carries one label from each:
+
+| Axis | Labels | Notes |
+|---|---|---|
+| **Type** | `type:feat`, `type:fix`, `type:chore`, `type:docs`, `type:test`, `type:refactor`, `type:perf`, `type:security`, `type:breaking` | Matches the Conventional Commits type set exactly. |
+| **Scope** | `scope:backend`, `scope:webapp`, `scope:sdk-js`, `scope:cli`, `scope:infra`, `scope:docs` | Matches the Conventional Commits scope set exactly. |
+| **Estimate** | `est:xs` ≤1h, `est:s` ≤4h, `est:m` ≤1d, `est:l` ≤3d, `est:xl` ≥1w | `xl` issues must be split before leaving READY. |
+| **Phase milestone** | `Phase 0 — Bootstrap → v0.0.1` through `Phase 7 — … → v1.0.0`; `Deferred — post-v1.0.0 or not planned` | Milestone, not label — enforced by the issue-template defaults. |
+| **Release lens** | `mvp` · `post-mvp` · `deferred` · `target` · `blocked` | `mvp` = Phases 0–3 (the first runnable product). `target` = in the active work queue toward the next signed tag. `blocked` = external dependency. |
+
+Issue templates under `.github/ISSUE_TEMPLATE/` preset the first four; reviewers add `target` / `blocked` during triage.
+
 ## Tests
 
 - **Tests first** for new behaviour where the shape is clear (TDD).
