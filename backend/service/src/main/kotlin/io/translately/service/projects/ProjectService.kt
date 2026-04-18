@@ -32,17 +32,19 @@ open class ProjectService(
         callerExternalId: String,
         orgSlugOrId: String,
     ): List<ProjectSummary> {
-        val membership = orgService.requireMembership(callerExternalId, orgSlugOrId)
+        orgService.requireMembership(callerExternalId, orgSlugOrId)
+        val orgKey = orgSlugOrId.trim().lowercase()
         val rows =
             em
                 .createQuery(
                     """
                     SELECT p FROM Project p
-                    WHERE p.organization.id = :oid AND p.deletedAt IS NULL
+                    WHERE (p.organization.slug = :orgKey OR p.organization.externalId = :orgKey)
+                      AND p.deletedAt IS NULL
                     ORDER BY p.name
                     """.trimIndent(),
                     Project::class.java,
-                ).setParameter("oid", membership.organization.id)
+                ).setParameter("orgKey", orgKey)
                 .resultList
         return rows.map(::toSummary)
     }
@@ -81,7 +83,7 @@ open class ProjectService(
         if (errors.isNotEmpty()) throw OrgException.ValidationFailed(errors)
 
         val finalSlug = slug!!
-        if (projectSlugTaken(membership.organization.id!!, finalSlug)) {
+        if (projectSlugTaken(orgSlugOrId, finalSlug)) {
             throw OrgException.SlugTaken(finalSlug, "project")
         }
 
@@ -143,32 +145,37 @@ open class ProjectService(
         orgSlugOrId: String,
         projectSlugOrId: String,
     ): Project {
-        val membership = orgService.requireMembership(callerExternalId, orgSlugOrId)
-        val normalized = projectSlugOrId.trim().lowercase()
+        orgService.requireMembership(callerExternalId, orgSlugOrId)
+        val orgKey = orgSlugOrId.trim().lowercase()
+        val projKey = projectSlugOrId.trim().lowercase()
         return em
             .createQuery(
                 """
                 SELECT p FROM Project p
-                WHERE p.organization.id = :oid
-                  AND (p.slug = :key OR p.externalId = :key)
+                WHERE (p.organization.slug = :orgKey OR p.organization.externalId = :orgKey)
+                  AND (p.slug = :projKey OR p.externalId = :projKey)
                   AND p.deletedAt IS NULL
                 """.trimIndent(),
                 Project::class.java,
-            ).setParameter("oid", membership.organization.id)
-            .setParameter("key", normalized)
+            ).setParameter("orgKey", orgKey)
+            .setParameter("projKey", projKey)
             .resultList
             .firstOrNull() ?: throw OrgException.NotFound("Project")
     }
 
     private fun projectSlugTaken(
-        orgId: Long,
+        orgSlugOrId: String,
         slug: String,
     ): Boolean =
         em
             .createQuery(
-                "SELECT COUNT(p) FROM Project p WHERE p.organization.id = :oid AND p.slug = :slug",
+                """
+                SELECT COUNT(p) FROM Project p
+                WHERE (p.organization.slug = :orgKey OR p.organization.externalId = :orgKey)
+                  AND p.slug = :slug
+                """.trimIndent(),
                 java.lang.Long::class.java,
-            ).setParameter("oid", orgId)
+            ).setParameter("orgKey", orgSlugOrId.trim().lowercase())
             .setParameter("slug", slug)
             .singleResult
             .toLong() > 0
