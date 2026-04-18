@@ -12,11 +12,15 @@ import java.time.Instant
  * - [refreshToken] has a minimal claim set (subject + jti + type=refresh)
  *   and a longer TTL (default 30 days). The JTI is single-use: the
  *   `/auth/refresh` endpoint rejects any refresh token it's already seen.
+ * - [refreshJti] is the raw `jti` value embedded in [refreshToken]; the
+ *   service layer stores it in the `refresh_tokens` ledger so consumption
+ *   is atomic without re-parsing the JWT.
  * - [accessExpiresAt] is what the webapp stores to schedule silent refresh.
  */
 data class JwtTokens(
     val accessToken: String,
     val refreshToken: String,
+    val refreshJti: String,
     val accessExpiresAt: Instant,
     val refreshExpiresAt: Instant,
 )

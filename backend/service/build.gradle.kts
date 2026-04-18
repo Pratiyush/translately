@@ -17,6 +17,10 @@ dependencies {
     implementation(project(":backend:cdn"))
     implementation(project(":backend:audit"))
 
+    // Needed so AuthService can open EntityManager-level queries / @Transactional
+    // without dragging the full Panache-Kotlin DSL into this module.
+    implementation(libs.quarkus.hibernate.orm.panache.kotlin)
+
     implementation(libs.icu4j)
     implementation(libs.quarkus.redis.client)
 }

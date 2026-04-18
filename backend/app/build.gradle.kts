@@ -28,6 +28,15 @@ dependencies {
     implementation(libs.quarkus.micrometer.prometheus)
     implementation(libs.quarkus.opentelemetry)
 
+    // Hibernate ORM + Panache Kotlin is needed on the app classpath so
+    // EntityManager is available to tests (AuthServiceIT uses @Inject
+    // EntityManager to seed rows before exercising the service).
+    implementation(libs.quarkus.hibernate.orm.panache.kotlin)
+    implementation(libs.quarkus.jdbc.postgresql)
+    implementation(libs.quarkus.flyway)
+    implementation(libs.quarkus.mailer)
+    implementation(libs.quarkus.qute)
+
     testImplementation(libs.archunit.junit5)
     testImplementation(libs.quarkus.junit5.mockito)
     testImplementation(libs.quarkus.test.security)

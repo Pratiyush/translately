@@ -160,6 +160,13 @@ class JwtIssuerIT {
         assertNotEquals(jtiA, jtiB)
     }
 
+    @Test
+    fun `refreshJti field matches the jti embedded in the refresh token payload`() {
+        val tokens = issuer.issue("01HT7F8KXN0GZJYQP3M5CRSBNW", "a@example.com", emptySet())
+        val payloadJti = payloadOf(tokens.refreshToken)["jti"]
+        assertEquals(tokens.refreshJti, payloadJti)
+    }
+
     // ---- output envelope -----------------------------------------------------
 
     @Test

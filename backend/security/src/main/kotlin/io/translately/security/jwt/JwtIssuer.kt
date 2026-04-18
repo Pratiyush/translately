@@ -63,12 +63,13 @@ open class JwtIssuer(
                 .expiresAt(accessExpiresAt.epochSecond)
                 .sign()
 
+        val refreshJti = TokenGenerator.generate()
         val refreshToken =
             Jwt
                 .issuer(issuer)
                 .audience(audience)
                 .subject(userExternalId)
-                .claim("jti", TokenGenerator.generate())
+                .claim("jti", refreshJti)
                 .claim(JwtClaims.TYPE, JwtClaims.TYPE_REFRESH)
                 .issuedAt(now.epochSecond)
                 .expiresAt(refreshExpiresAt.epochSecond)
@@ -77,6 +78,7 @@ open class JwtIssuer(
         return JwtTokens(
             accessToken = accessToken,
             refreshToken = refreshToken,
+            refreshJti = refreshJti,
             accessExpiresAt = accessExpiresAt,
             refreshExpiresAt = refreshExpiresAt,
         )
