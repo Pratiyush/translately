@@ -87,6 +87,8 @@ quarkus-test-security                = { module = "io.quarkus:quarkus-test-secur
 # ---- Non-Quarkus libraries ----
 icu4j                                = { module = "com.ibm.icu:icu4j", version.ref = "icu4j" }
 argon2                               = { module = "de.mkammerer:argon2-jvm", version.ref = "argon2" }
+jackson-bom                          = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson-bom" }
+jackson-module-kotlin                = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
 
 # ---- Testing ----
 kotest-runner-junit5                 = { module = "io.kotest:kotest-runner-junit5",     version.ref = "kotest" }
