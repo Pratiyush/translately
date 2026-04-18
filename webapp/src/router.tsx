@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from '@/components/shell/AppShell';
 import { DashboardRoute } from '@/components/routes/DashboardRoute';
 import { NotFoundRoute } from '@/components/routes/NotFoundRoute';
+import { OrgDetailRoute } from '@/components/routes/OrgDetailRoute';
 import { OrgsRoute } from '@/components/routes/OrgsRoute';
 import { ProjectsRoute } from '@/components/routes/ProjectsRoute';
 import { ForgotPasswordRoute } from '@/components/routes/auth/ForgotPasswordRoute';
@@ -46,6 +47,7 @@ export function AppRoutes() {
       >
         <Route index element={<DashboardRoute />} />
         <Route path="orgs" element={<OrgsRoute />} />
+        <Route path="orgs/:orgSlug" element={<OrgDetailRoute />} />
         <Route path="projects" element={<ProjectsRoute />} />
         <Route path="*" element={<NotFoundRoute />} />
       </Route>
