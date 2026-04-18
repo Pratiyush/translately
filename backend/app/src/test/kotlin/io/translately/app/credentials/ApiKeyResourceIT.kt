@@ -41,7 +41,10 @@ open class ApiKeyResourceIT {
                 scopes = setOf(Scope.ORG_READ, Scope.PROJECTS_READ),
             ).accessToken
 
-    private fun elevatedHeader(write: Boolean): String = (if (write) Scope.API_KEYS_WRITE else Scope.API_KEYS_READ).token
+    private fun elevatedHeader(write: Boolean): String {
+        val scope = if (write) Scope.API_KEYS_WRITE else Scope.API_KEYS_READ
+        return scope.token
+    }
 
     @Test
     fun `mint → list → revoke happy path`() {
