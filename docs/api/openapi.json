@@ -1,41 +1,563 @@
 {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "Translately API",
-    "version": "0.1.0-placeholder",
-    "description": "Placeholder OpenAPI document. Regenerated from the Quarkus backend by T113 (issue #31) before v0.1.0 is tagged. Do not hand-edit.",
-    "license": {
-      "name": "MIT",
-      "url": "https://github.com/Pratiyush/translately/blob/master/LICENSE"
+  "openapi" : "3.1.0",
+  "tags" : [ {
+    "name" : "api-keys",
+    "description" : "Project-scoped API key lifecycle"
+  }, {
+    "name" : "auth",
+    "description" : "Email + password authentication flow"
+  }, {
+    "name" : "meta",
+    "description" : "Service metadata"
+  }, {
+    "name" : "pats",
+    "description" : "Personal Access Token lifecycle"
+  } ],
+  "components" : {
+    "schemas" : {
+      "ForgotPasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "Index" : {
+        "type" : "object",
+        "required" : [ "name", "version", "docs", "health", "openapi", "swagger" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          },
+          "docs" : {
+            "type" : "string"
+          },
+          "health" : {
+            "type" : "string"
+          },
+          "openapi" : {
+            "type" : "string"
+          },
+          "swagger" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Instant" : {
+        "type" : "string",
+        "format" : "date-time",
+        "examples" : [ "2022-03-10T16:15:50Z" ]
+      },
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : [ "string", "null" ]
+          },
+          "password" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "MintBody" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "scopes" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "expiresAt" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/Instant"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        }
+      },
+      "MintBody1" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "scopes" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "expiresAt" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/Instant"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        }
+      },
+      "RefreshRequest" : {
+        "type" : "object",
+        "properties" : {
+          "refreshToken" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "ResetPasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : [ "string", "null" ]
+          },
+          "newPassword" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "SignupRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : [ "string", "null" ]
+          },
+          "password" : {
+            "type" : [ "string", "null" ]
+          },
+          "fullName" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "TokenRequest" : {
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      }
+    },
+    "securitySchemes" : {
+      "SecurityScheme" : {
+        "type" : "http",
+        "scheme" : "bearer",
+        "bearerFormat" : "JWT",
+        "description" : "Authentication"
+      }
     }
   },
-  "servers": [
-    {
-      "url": "http://localhost:8080",
-      "description": "Local dev (docker-compose)"
-    }
-  ],
-  "paths": {
-    "/q/health": {
-      "get": {
-        "summary": "Liveness probe",
-        "responses": {
-          "200": {
-            "description": "Process is alive",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": { "type": "string", "enum": ["UP"] }
-                  }
+  "paths" : {
+    "/" : {
+      "get" : {
+        "summary" : "Service metadata",
+        "description" : "Returns name, version, and well-known endpoint paths.",
+        "tags" : [ "meta" ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Index"
                 }
               }
             }
           }
         }
       }
+    },
+    "/api/v1/auth/forgot-password" : {
+      "post" : {
+        "summary" : "Request a password reset link. Always returns 202 — never leaks whether the email exists.",
+        "tags" : [ "auth" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "description" : "Reset email queued if the account exists."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login" : {
+      "post" : {
+        "summary" : "Issue access + refresh tokens for a verified account.",
+        "tags" : [ "auth" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Login successful."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Bad credentials."
+          },
+          "403" : {
+            "description" : "Email not verified."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh" : {
+      "post" : {
+        "summary" : "Rotate refresh tokens; single-use, replay returns 401.",
+        "tags" : [ "auth" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "New tokens issued."
+          },
+          "400" : {
+            "description" : "Refresh token missing."
+          },
+          "401" : {
+            "description" : "Refresh token invalid or reused."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password" : {
+      "post" : {
+        "summary" : "Consume a password-reset token and update the user's password.",
+        "tags" : [ "auth" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Password updated."
+          },
+          "400" : {
+            "description" : "Validation failed or token invalid."
+          },
+          "401" : {
+            "description" : "Token expired."
+          },
+          "409" : {
+            "description" : "Token already consumed."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signup" : {
+      "post" : {
+        "summary" : "Create a new account; sends a verification email.",
+        "tags" : [ "auth" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SignupRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Account created; verification email sent."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "409" : {
+            "description" : "Email already registered."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-email" : {
+      "post" : {
+        "summary" : "Consume a verification token and flip emailVerifiedAt.",
+        "tags" : [ "auth" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TokenRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Email verified."
+          },
+          "400" : {
+            "description" : "Token invalid."
+          },
+          "401" : {
+            "description" : "Token expired."
+          },
+          "409" : {
+            "description" : "Token already consumed."
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/api-keys" : {
+      "post" : {
+        "summary" : "Mint a new API key. The full secret is returned exactly once.",
+        "description" : "Scopes requested on the new key must be a subset of the caller's current scope set; otherwise 403 SCOPE_ESCALATION. The returned `secret` is the full token to present as `Authorization: ApiKey <secret>` on future requests.",
+        "tags" : [ "api-keys" ],
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MintBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "API key minted; secret in body."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "403" : {
+            "description" : "Scope escalation attempt."
+          },
+          "404" : {
+            "description" : "Project not found."
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "get" : {
+        "summary" : "List API keys for the project (no secrets).",
+        "tags" : [ "api-keys" ],
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Listing returned."
+          },
+          "404" : {
+            "description" : "Project not found."
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/projects/{projectId}/api-keys/{apiKeyId}" : {
+      "delete" : {
+        "summary" : "Revoke an API key. Idempotent.",
+        "tags" : [ "api-keys" ],
+        "parameters" : [ {
+          "name" : "apiKeyId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Key revoked."
+          },
+          "404" : {
+            "description" : "Project or API key not found."
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/users/me/pats" : {
+      "post" : {
+        "summary" : "Mint a new PAT. The full secret is returned exactly once.",
+        "description" : "Scopes requested on the new PAT must be a subset of the caller's current JWT scope set.",
+        "tags" : [ "pats" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MintBody1"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "PAT minted; secret in body."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "403" : {
+            "description" : "Scope escalation attempt."
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "get" : {
+        "summary" : "List PATs owned by the caller (no secrets).",
+        "tags" : [ "pats" ],
+        "responses" : {
+          "200" : {
+            "description" : "Listing returned."
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/users/me/pats/{patId}" : {
+      "delete" : {
+        "summary" : "Revoke a PAT owned by the caller. Idempotent.",
+        "tags" : [ "pats" ],
+        "parameters" : [ {
+          "name" : "patId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "PAT revoked."
+          },
+          "404" : {
+            "description" : "PAT not found."
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
     }
   },
-  "components": {}
+  "info" : {
+    "title" : "Translately API",
+    "version" : "0.0.1-SNAPSHOT",
+    "description" : "Open-source self-hosted localization and translation management API.",
+    "contact" : {
+      "name" : "Pratiyush",
+      "url" : "https://github.com/Pratiyush/translately"
+    },
+    "license" : {
+      "name" : "MIT",
+      "url" : "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers" : [ {
+    "url" : "http://localhost:8080",
+    "description" : "Auto generated value"
+  }, {
+    "url" : "http://0.0.0.0:8080",
+    "description" : "Auto generated value"
+  } ]
 }

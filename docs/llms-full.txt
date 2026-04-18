@@ -72,7 +72,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 
 ## Pages
 
-- [`openapi.json`](openapi.json) — machine-readable OpenAPI 3.1 spec, auto-generated from the backend. Regenerate on every API change (T113).
+- [`openapi.json`](openapi.json) — machine-readable OpenAPI 3.1 spec, auto-generated from the backend. Regenerate on every API change (see [Regenerating](#regenerating) below).
 - [Scopes](scopes.md) — permission scope matrix (role → scope set), scope naming convention, `@RequiresScope` usage.
 - [Error codes](errors.md) — stable catalogue of `error.code` strings, HTTP status mapping, troubleshooting.
 - [Rate limits](rate-limits.md) — per-token and per-endpoint policy, headers, `429` retry semantics.
@@ -96,6 +96,21 @@ The committed [`openapi.json`](openapi.json) is the source of truth for generate
 - The webapp uses the same generated types for every network call (T120).
 
 If you change a controller, regenerate the spec in the same PR. A stale `openapi.json` breaks the SDK build.
+
+## Regenerating
+
+`docs/api/openapi.json` is produced by the Quarkus SmallRye OpenAPI extension at build time. Config lives in [`backend/app/src/main/resources/application.yml`](https://github.com/Pratiyush/translately/blob/master/backend/app/src/main/resources/application.yml) under `quarkus.smallrye-openapi.store-schema-directory`; two Gradle tasks manage the committed copy:
+
+```bash
+# Regenerate + copy into docs/api/openapi.json
+./gradlew :backend:app:copyOpenApi
+
+# Verify the committed file matches the build (CI runs this automatically)
+./gradlew :backend:app:checkOpenApiUpToDate
+```
+
+`checkOpenApiUpToDate` is wired into `./gradlew check`, so CI fails with an actionable message if the committed schema drifts from the current controllers. Run `copyOpenApi` and commit the result to fix.
+
 
 
 <!-- ===== FILE: api/auth.md ===== -->
