@@ -71,6 +71,10 @@ The ledger is the only DB read on the hot path; it carries a `(jti UNIQUE, consu
 
 `JwtSecurityScopesFilter` deliberately rejects refresh tokens on regular endpoints — refresh tokens are only valid at the `/api/v1/auth/refresh` controller. This prevents a stolen refresh token from being used to read data directly; it also means the refresh TTL can be longer than the access TTL without compromising the API surface.
 
+### Claim reading
+
+`JwtSecurityScopesFilter` reads the `typ` and `scope` claims with a **typed `String` generic** — `token.getClaim<String>(name)` rather than `token.getClaim<Any?>(name)?.toString()`. Smallrye stores JSON string claims as `jakarta.json.JsonString` internally, and `JsonString.toString()` returns the quoted JSON literal (for example `"access"` with the quote characters included) rather than the underlying value. Reading through the typed generic makes Smallrye unwrap the claim via its internal converter and hand back the raw `String`. The filter additionally strips a leading/trailing `"` pair from the result as a belt-and-braces guard against any code path that still surfaces a quoted value. Root cause for [issue #151](https://github.com/Pratiyush/translately/issues/151); regression guarded by `JwtSecurityScopesFilterIT` (`:backend:app`).
+
 ## API key + PAT authentication
 
 Both credential types follow the same shape and Argon2id-hash their secrets:
@@ -110,6 +114,7 @@ PATs identify a **user**, so their scopes are intersected with the user's effect
 ## Test coverage
 
 - `JwtIssuerIT` / `JwtAuthenticationIT` (in `:backend:app`) — round-trip signed JWTs against a running Quarkus instance; assert every claim field and every rejection path.
+- `JwtSecurityScopesFilterIT` (`:backend:app`) — regression for [issue #151](https://github.com/Pratiyush/translately/issues/151): mints a JWT via `JwtIssuer`, presents it on a `@RequiresScope` probe endpoint, and asserts the filter unwraps `JsonString` claims correctly so `SecurityScopes.granted` is populated.
 - `PasswordHasherTest` (`:backend:security`) — verifies Argon2id parameter constants, round-trip hash+verify, wrong-password rejection, and malformed-hash graceful failure.
 - `CryptoServiceTest` — envelope layout, tamper detection, KEK-size validation.
 - `ScopeResolverTest` / `OrgRoleScopesTest` — role-to-scope mapping invariants.

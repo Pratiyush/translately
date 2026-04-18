@@ -139,6 +139,45 @@ open class AuthResourceIT {
     }
 
     @Test
+    fun `login access token opens a scope-protected endpoint end-to-end (issue #151)`() {
+        // Full round-trip: signup → verify → login → hit a @RequiresScope
+        // endpoint with the real access JWT. Proves `JwtSecurityScopesFilter`
+        // reads the `scope` claim correctly and grants it to SecurityScopes.
+        // Uses the probe resource declared in JwtAuthenticationIT
+        // (`/test/jwt/projects`, requires Scope.PROJECTS_READ) — login issues
+        // `ORG_READ + PROJECTS_READ` by default, so this must return 200.
+        val email = uniqueEmail()
+        given()
+            .contentType(ContentType.JSON)
+            .body("""{"email":"$email","password":"correcthorsestaple!","fullName":"Jamie"}""")
+            .`when`()
+            .post("/api/v1/auth/signup")
+            .then()
+            .statusCode(201)
+        testHelpers.markVerified(email)
+
+        val accessToken =
+            given()
+                .contentType(ContentType.JSON)
+                .body("""{"email":"$email","password":"correcthorsestaple!"}""")
+                .`when`()
+                .post("/api/v1/auth/login")
+                .then()
+                .statusCode(200)
+                .extract()
+                .jsonPath()
+                .getString("accessToken")
+
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/test/jwt/projects")
+            .then()
+            .statusCode(200)
+            .body(equalTo("ok-projects.read"))
+    }
+
+    @Test
     fun `verify-email returns 400 TOKEN_INVALID for garbage`() {
         given()
             .contentType(ContentType.JSON)
