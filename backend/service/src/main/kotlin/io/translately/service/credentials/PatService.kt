@@ -57,8 +57,9 @@ open class PatService(
             throw CredentialException.ScopeEscalation(requested, callerScopes)
         }
 
-        val user = findUserByExternalId(userExternalId)
-            ?: throw CredentialException.NotFound("User")
+        val user =
+            findUserByExternalId(userExternalId)
+                ?: throw CredentialException.NotFound("User")
 
         val (prefix, secret, fullToken) = generateTokenWithUniquePrefix()
         val hash = passwordHasher.hash(secret)
@@ -96,8 +97,9 @@ open class PatService(
     /** Return summaries (no secrets) for every PAT the user owns. */
     @Transactional
     open fun list(userExternalId: String): List<PatSummary> {
-        val user = findUserByExternalId(userExternalId)
-            ?: throw CredentialException.NotFound("User")
+        val user =
+            findUserByExternalId(userExternalId)
+                ?: throw CredentialException.NotFound("User")
         return em
             .createQuery(
                 "SELECT p FROM Pat p WHERE p.user.id = :userId ORDER BY p.id DESC",
@@ -114,8 +116,9 @@ open class PatService(
         patExternalId: String,
         now: Instant = Instant.now(),
     ) {
-        val user = findUserByExternalId(userExternalId)
-            ?: throw CredentialException.NotFound("User")
+        val user =
+            findUserByExternalId(userExternalId)
+                ?: throw CredentialException.NotFound("User")
         val entity =
             em
                 .createQuery(

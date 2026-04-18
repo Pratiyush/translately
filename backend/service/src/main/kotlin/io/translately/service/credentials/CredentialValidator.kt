@@ -60,8 +60,9 @@ object CredentialValidator {
         // first unknown token so the UI can highlight it.
         val resolved = mutableSetOf<Scope>()
         for (raw in scopeTokens) {
-            val scope = Scope.fromToken(raw.trim())
-                ?: throw CredentialException.UnknownScope(raw)
+            val scope =
+                Scope.fromToken(raw.trim())
+                    ?: throw CredentialException.UnknownScope(raw)
             resolved += scope
         }
         return resolved

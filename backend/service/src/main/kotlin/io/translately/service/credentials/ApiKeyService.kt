@@ -78,8 +78,9 @@ open class ApiKeyService(
             throw CredentialException.ScopeEscalation(requested, callerScopes)
         }
 
-        val project = findProjectByExternalId(projectExternalId)
-            ?: throw CredentialException.NotFound("Project")
+        val project =
+            findProjectByExternalId(projectExternalId)
+                ?: throw CredentialException.NotFound("Project")
 
         // Retry prefix generation a bounded number of times in the
         // astronomically unlikely event of a collision on the 8-char random
@@ -121,8 +122,9 @@ open class ApiKeyService(
     /** Return summaries (no secrets) for every API key in the project. */
     @Transactional
     open fun list(projectExternalId: String): List<ApiKeySummary> {
-        val project = findProjectByExternalId(projectExternalId)
-            ?: throw CredentialException.NotFound("Project")
+        val project =
+            findProjectByExternalId(projectExternalId)
+                ?: throw CredentialException.NotFound("Project")
         return em
             .createQuery(
                 "SELECT a FROM ApiKey a WHERE a.project.id = :projectId ORDER BY a.id DESC",
@@ -139,8 +141,9 @@ open class ApiKeyService(
         apiKeyExternalId: String,
         now: Instant = Instant.now(),
     ) {
-        val project = findProjectByExternalId(projectExternalId)
-            ?: throw CredentialException.NotFound("Project")
+        val project =
+            findProjectByExternalId(projectExternalId)
+                ?: throw CredentialException.NotFound("Project")
         val entity =
             em
                 .createQuery(

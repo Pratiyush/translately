@@ -36,11 +36,12 @@ open class PatResourceIT {
         val email = "pat-it-${System.nanoTime()}@example.com"
         val uid = helpers.seedVerifiedUser(email)
         val token =
-            jwtIssuer.issue(
-                userExternalId = uid,
-                email = email,
-                scopes = setOf(Scope.ORG_READ, Scope.PROJECTS_READ, Scope.KEYS_READ),
-            ).accessToken
+            jwtIssuer
+                .issue(
+                    userExternalId = uid,
+                    email = email,
+                    scopes = setOf(Scope.ORG_READ, Scope.PROJECTS_READ, Scope.KEYS_READ),
+                ).accessToken
         return token to uid
     }
 
@@ -54,12 +55,13 @@ open class PatResourceIT {
                 .header("Authorization", "Bearer $token")
                 .contentType(ContentType.JSON)
                 .body(
-                    """{
-                       "name": "CLI personal",
-                       "scopes": ["keys.read"]
-                     }""".trimIndent(),
-                )
-                .`when`()
+                    """
+                    {
+                      "name": "CLI personal",
+                      "scopes": ["keys.read"]
+                    }
+                    """.trimIndent(),
+                ).`when`()
                 .post("/api/v1/users/me/pats")
                 .then()
                 .statusCode(201)
@@ -111,12 +113,13 @@ open class PatResourceIT {
             .contentType(ContentType.JSON)
             // caller holds only KEYS_READ + ORG_READ + PROJECTS_READ; api-keys.write is outside
             .body(
-                """{
-                   "name": "privileged",
-                   "scopes": ["api-keys.write"]
-                 }""".trimIndent(),
-            )
-            .`when`()
+                """
+                {
+                  "name": "privileged",
+                  "scopes": ["api-keys.write"]
+                }
+                """.trimIndent(),
+            ).`when`()
             .post("/api/v1/users/me/pats")
             .then()
             .statusCode(403)
@@ -131,12 +134,13 @@ open class PatResourceIT {
             .header("Authorization", "Bearer $token")
             .contentType(ContentType.JSON)
             .body(
-                """{
-                   "name": "x",
-                   "scopes": ["nope.nope"]
-                 }""".trimIndent(),
-            )
-            .`when`()
+                """
+                {
+                  "name": "x",
+                  "scopes": ["nope.nope"]
+                }
+                """.trimIndent(),
+            ).`when`()
             .post("/api/v1/users/me/pats")
             .then()
             .statusCode(400)

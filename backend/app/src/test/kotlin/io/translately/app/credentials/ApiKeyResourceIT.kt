@@ -34,14 +34,14 @@ open class ApiKeyResourceIT {
     lateinit var jwtIssuer: JwtIssuer
 
     private fun seedToken(email: String = "apikey-it-${System.nanoTime()}@example.com") =
-        jwtIssuer.issue(
-            userExternalId = helpers.seedVerifiedUser(email),
-            email = email,
-            scopes = setOf(Scope.ORG_READ, Scope.PROJECTS_READ),
-        ).accessToken
+        jwtIssuer
+            .issue(
+                userExternalId = helpers.seedVerifiedUser(email),
+                email = email,
+                scopes = setOf(Scope.ORG_READ, Scope.PROJECTS_READ),
+            ).accessToken
 
-    private fun elevatedHeader(write: Boolean): String =
-        (if (write) Scope.API_KEYS_WRITE else Scope.API_KEYS_READ).token
+    private fun elevatedHeader(write: Boolean): String = (if (write) Scope.API_KEYS_WRITE else Scope.API_KEYS_READ).token
 
     @Test
     fun `mint → list → revoke happy path`() {
@@ -55,12 +55,13 @@ open class ApiKeyResourceIT {
                 .header("X-Test-Scopes", "${elevatedHeader(true)} ${elevatedHeader(false)} keys.read keys.write")
                 .contentType(ContentType.JSON)
                 .body(
-                    """{
-                       "name": "CI publisher",
-                       "scopes": ["keys.read", "keys.write"]
-                     }""".trimIndent(),
-                )
-                .`when`()
+                    """
+                    {
+                      "name": "CI publisher",
+                      "scopes": ["keys.read", "keys.write"]
+                    }
+                    """.trimIndent(),
+                ).`when`()
                 .post("/api/v1/projects/$projectId/api-keys")
                 .then()
                 .statusCode(201)
@@ -123,12 +124,13 @@ open class ApiKeyResourceIT {
             .header("X-Test-Scopes", elevatedHeader(true))
             .contentType(ContentType.JSON)
             .body(
-                """{
-                   "name": "naughty",
-                   "scopes": ["audit.read"]
-                 }""".trimIndent(),
-            )
-            .`when`()
+                """
+                {
+                  "name": "naughty",
+                  "scopes": ["audit.read"]
+                }
+                """.trimIndent(),
+            ).`when`()
             .post("/api/v1/projects/$projectId/api-keys")
             .then()
             .statusCode(403)
@@ -146,12 +148,13 @@ open class ApiKeyResourceIT {
             .header("X-Test-Scopes", elevatedHeader(true))
             .contentType(ContentType.JSON)
             .body(
-                """{
-                   "name": "x",
-                   "scopes": ["not-a-real-scope"]
-                 }""".trimIndent(),
-            )
-            .`when`()
+                """
+                {
+                  "name": "x",
+                  "scopes": ["not-a-real-scope"]
+                }
+                """.trimIndent(),
+            ).`when`()
             .post("/api/v1/projects/$projectId/api-keys")
             .then()
             .statusCode(400)
@@ -169,12 +172,13 @@ open class ApiKeyResourceIT {
             .header("X-Test-Scopes", elevatedHeader(true))
             .contentType(ContentType.JSON)
             .body(
-                """{
-                   "name": "",
-                   "scopes": ["keys.read"]
-                 }""".trimIndent(),
-            )
-            .`when`()
+                """
+                {
+                  "name": "",
+                  "scopes": ["keys.read"]
+                }
+                """.trimIndent(),
+            ).`when`()
             .post("/api/v1/projects/$projectId/api-keys")
             .then()
             .statusCode(400)
@@ -191,12 +195,13 @@ open class ApiKeyResourceIT {
             .header("X-Test-Scopes", "${elevatedHeader(true)} keys.read")
             .contentType(ContentType.JSON)
             .body(
-                """{
-                   "name": "orphan",
-                   "scopes": ["keys.read"]
-                 }""".trimIndent(),
-            )
-            .`when`()
+                """
+                {
+                  "name": "orphan",
+                  "scopes": ["keys.read"]
+                }
+                """.trimIndent(),
+            ).`when`()
             .post("/api/v1/projects/00000000000000000000000000/api-keys")
             .then()
             .statusCode(404)
