@@ -29,6 +29,11 @@ Every page lives inside the authenticated shell — a visitor without a session 
   - 409 `ORG_SLUG_TAKEN` surfaces inline as a localised error ("That URL slug is already in use.").
   - Dialog closes on success and the list refreshes via TanStack Query invalidation.
 
+<picture>
+  <source srcset="screenshots/orgs-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/orgs-light.png" alt="Organizations page with Create organization CTA and the page heading." />
+</picture>
+
 ## `/orgs/:orgSlug` — tabbed detail
 
 Tabs are a plain `role="tablist"` + `role="tabpanel"` pattern (no Radix needed) so keyboard users get Space / Enter to switch tabs without JS fanciness.
@@ -59,6 +64,11 @@ Tabs are a plain `role="tablist"` + `role="tabpanel"` pattern (no Radix needed) 
 - Tenant-scoped: the active org comes from the header `OrgSwitcher`.
 - No active org → explainer + CTA back to `/orgs`.
 - Creation lives on `/orgs/:slug` — this page is an index, not a create surface. Links through on its empty state so users don't have to hunt for the button.
+
+<picture>
+  <source srcset="screenshots/projects-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/projects-light.png" alt="Projects index rendered for the active organization — tenant-scoped page with the org's name in the subtitle." />
+</picture>
 
 ## Keyboard + accessibility
 

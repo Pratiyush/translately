@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- **Product-doc screenshots, light + dark** (`docs/product/screenshots/`). 14 PNGs across the public auth surface (`signin`, `signup`, `forgot-password`, `verify-email-pending`) and the authenticated shell (`dashboard`, `orgs`, `projects`), embedded in the matching product pages via `<picture>` with `prefers-color-scheme` so the docs site automatically shows the right variant. New capture workflow lives in `webapp/scripts/capture-screenshots.mjs`; run via `pnpm --filter @translately/webapp screenshots` after `pnpm --filter @translately/webapp dev` is up. `playwright` added as a webapp devDependency. Also adds `docs/product/screenshots.md` explaining the regen steps.
+
 ## [0.1.0] — 2026-04-18 — Phase 1: Auth + Organizations
 
 ### Added (Phase 1)

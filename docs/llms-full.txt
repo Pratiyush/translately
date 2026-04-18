@@ -2602,6 +2602,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 - [Authentication](auth.md) — signup, email verify, login, password reset _(added by T103)_
 - [API keys & PATs](api-keys-and-pats.md) — project-scoped API keys and user-scoped Personal Access Tokens _(added by T110)_
 - [Organizations, projects, and members](organizations-and-projects.md) — real CRUD UI for tenants, projects, and role-based membership _(added by T118 + T119)_
+- [Screenshots](screenshots.md) — capture workflow, regen command, light + dark `<picture>` embed pattern
 
 ## Conventions
 
@@ -2846,6 +2847,13 @@ Related: [theming](theming.md), [authentication](auth.md), [webapp architecture]
 
 The `<header>` is the single [`banner`](https://www.w3.org/TR/wai-aria-1.2/#banner) landmark; the `<main>` is the single [`main`](https://www.w3.org/TR/wai-aria-1.2/#main) landmark with `tabIndex={-1}` so a "skip to content" link can focus it.
 
+### Screenshot
+
+<picture>
+  <source srcset="screenshots/dashboard-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/dashboard-light.png" alt="Authenticated app shell on the dashboard route: brand, org switcher, primary nav, theme toggle, and user avatar in the top bar." />
+</picture>
+
 ## OrgSwitcher
 
 Replaces the brand-only header on every page. Three states:
@@ -2959,6 +2967,34 @@ T117 wires five public routes against these endpoints:
 | `/verify-email?token=…` | Runs `POST /auth/verify-email` once on mount. Surfaces success / expired-link / consumed-link / missing-token states inline. |
 | `/forgot-password` | Email → `POST /auth/forgot-password` → always "check your inbox" (the backend's anti-enumeration 202 is mirrored in the UI). |
 | `/reset-password?token=…` | New password → `POST /auth/reset-password` → redirects to `/signin` on success. Every active refresh token is invalidated server-side; the user must re-login. |
+
+### Sign in
+
+<picture>
+  <source srcset="screenshots/signin-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/signin-light.png" alt="Sign in page — Translately logo, email + password form, primary sign-in button." />
+</picture>
+
+### Sign up
+
+<picture>
+  <source srcset="screenshots/signup-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/signup-light.png" alt="Sign up page — full name, email, and password fields with the password strength hint." />
+</picture>
+
+### Forgot password
+
+<picture>
+  <source srcset="screenshots/forgot-password-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/forgot-password-light.png" alt="Forgot password page — single email input, anti-enumeration 202 means we always show the same success message." />
+</picture>
+
+### Verify email (pending state)
+
+<picture>
+  <source srcset="screenshots/verify-email-pending-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/verify-email-pending-light.png" alt="Verifying email page — spinner visible while the token is exchanged." />
+</picture>
 
 All five pages use **React Hook Form + Zod** for client-side validation (mirrors the backend's `VALIDATION_FAILED` rules so first-wrong-click feedback is instant) and **TanStack Query** mutations against the **typed `api` client** (T120). Server errors round-trip via `error.code`; localised strings live in [`webapp/src/i18n/en.json`](https://github.com/Pratiyush/translately/blob/master/webapp/src/i18n/en.json) under the `auth.error.*` namespace — unknown codes fall back to `error.message`.
 
@@ -3123,6 +3159,11 @@ Every page lives inside the authenticated shell — a visitor without a session 
   - 409 `ORG_SLUG_TAKEN` surfaces inline as a localised error ("That URL slug is already in use.").
   - Dialog closes on success and the list refreshes via TanStack Query invalidation.
 
+<picture>
+  <source srcset="screenshots/orgs-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/orgs-light.png" alt="Organizations page with Create organization CTA and the page heading." />
+</picture>
+
 ## `/orgs/:orgSlug` — tabbed detail
 
 Tabs are a plain `role="tablist"` + `role="tabpanel"` pattern (no Radix needed) so keyboard users get Space / Enter to switch tabs without JS fanciness.
@@ -3153,6 +3194,11 @@ Tabs are a plain `role="tablist"` + `role="tabpanel"` pattern (no Radix needed) 
 - Tenant-scoped: the active org comes from the header `OrgSwitcher`.
 - No active org → explainer + CTA back to `/orgs`.
 - Creation lives on `/orgs/:slug` — this page is an index, not a create surface. Links through on its empty state so users don't have to hunt for the button.
+
+<picture>
+  <source srcset="screenshots/projects-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/projects-light.png" alt="Projects index rendered for the active organization — tenant-scoped page with the org's name in the subtitle." />
+</picture>
 
 ## Keyboard + accessibility
 
@@ -3187,6 +3233,59 @@ Unknown codes fall through to `error.message` from the envelope, then to a gener
 ## Changelog
 
 First shipped in [v0.1.0](../../CHANGELOG.md) under T118 (orgs UI) + T119 (projects + member management).
+
+
+<!-- ===== FILE: product/screenshots.md ===== -->
+
+---
+title: Screenshots
+parent: Product
+nav_order: 99
+---
+
+# Screenshots
+
+Every user-visible page in Translately ships with a light-mode and a dark-mode screenshot committed to `docs/product/screenshots/`. The images are embedded in the matching product page via a `<picture>` element that uses `prefers-color-scheme` to switch variants, so the docs site (and any third-party renderer that honours the media query) picks the theme that matches the reader's OS.
+
+Per [CLAUDE.md rule #7](https://github.com/Pratiyush/translately/blob/master/CLAUDE.md), every UI change must be verified in both themes; committing both captures with the change is the enforcement mechanism.
+
+## How to regenerate
+
+1. Start the webapp dev server in one terminal:
+
+   ```sh
+   pnpm --filter @translately/webapp dev
+   ```
+
+2. Run the capture script from another terminal:
+
+   ```sh
+   pnpm --filter @translately/webapp screenshots
+   ```
+
+   The script writes PNGs to `docs/product/screenshots/<page>-<light|dark>.png` (resolved relative to the repo root regardless of cwd).
+
+3. Review the diff and commit both variants of every changed page. Don't land a single-theme update — the reader switches OS theme and the `<picture>` fallback flips silently.
+
+The script (`webapp/scripts/capture-screenshots.mjs`) uses Playwright's headless Chromium at a 1440×900 viewport with a 2x device-scale for retina-sharp output. It seeds `localStorage` with a deterministic dev user + the chosen theme via `addInitScript`, so the first paint renders with the intended theme and authenticated content — no post-load flicker.
+
+## What gets captured today
+
+| Page | Path | Screenshot base name |
+|---|---|---|
+| Sign in | `/signin` | `signin` |
+| Sign up | `/signup` | `signup` |
+| Forgot password | `/forgot-password` | `forgot-password` |
+| Verify email (pending) | `/verify-email?token=demo-token` | `verify-email-pending` |
+| Dashboard (shell) | `/` | `dashboard` |
+| Organizations | `/orgs` | `orgs` |
+| Projects | `/projects` | `projects` |
+
+Adding a new page? Append it to the `PAGES` array in `capture-screenshots.mjs` with a stable `slug`, then re-run. Never rename an existing slug without updating every `<picture>` reference — the image paths are load-bearing for the live site.
+
+## Dependency note
+
+`playwright` is a devDependency of `@translately/webapp`. The first run downloads the chromium browser into `~/Library/Caches/ms-playwright` (~200 MB); subsequent runs are cached. The screenshot generator isn't in the CI critical path — it's a developer tool, run locally when shipping UI changes.
 
 
 <!-- ===== FILE: product/theming.md ===== -->

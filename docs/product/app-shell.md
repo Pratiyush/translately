@@ -29,6 +29,13 @@ Related: [theming](theming.md), [authentication](auth.md), [webapp architecture]
 
 The `<header>` is the single [`banner`](https://www.w3.org/TR/wai-aria-1.2/#banner) landmark; the `<main>` is the single [`main`](https://www.w3.org/TR/wai-aria-1.2/#main) landmark with `tabIndex={-1}` so a "skip to content" link can focus it.
 
+### Screenshot
+
+<picture>
+  <source srcset="screenshots/dashboard-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/dashboard-light.png" alt="Authenticated app shell on the dashboard route: brand, org switcher, primary nav, theme toggle, and user avatar in the top bar." />
+</picture>
+
 ## OrgSwitcher
 
 Replaces the brand-only header on every page. Three states:
