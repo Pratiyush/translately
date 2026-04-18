@@ -2,6 +2,8 @@
 title: Organizations, projects, and members
 parent: Product
 nav_order: 5
+# See docs/product/auth.md for why this permalink overrides pretty.
+permalink: /product/organizations-and-projects.html
 ---
 
 # Organizations, projects, and members

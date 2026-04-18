@@ -2,6 +2,8 @@
 title: Application shell
 parent: Product
 nav_order: 1
+# See docs/product/auth.md for why this permalink overrides pretty.
+permalink: /product/app-shell.html
 ---
 
 # Application shell

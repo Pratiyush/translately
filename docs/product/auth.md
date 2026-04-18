@@ -2,6 +2,12 @@
 title: Authentication
 parent: Product
 nav_order: 3
+# Override the site-wide `permalink: pretty` so `<picture>` srcs that
+# reference `screenshots/foo.png` (same-dir) resolve to
+# `/product/screenshots/foo.png` in the browser. With the pretty
+# default, this URL would be `/product/auth/` (trailing slash) and
+# `screenshots/foo.png` would 404 at `/product/auth/screenshots/foo.png`.
+permalink: /product/auth.html
 ---
 
 

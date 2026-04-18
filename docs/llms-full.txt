@@ -2825,6 +2825,8 @@ Shipped in [Unreleased](https://github.com/Pratiyush/translately/blob/master/CHA
 title: Application shell
 parent: Product
 nav_order: 1
+# See docs/product/auth.md for why this permalink overrides pretty.
+permalink: /product/app-shell.html
 ---
 
 # Application shell
@@ -2952,6 +2954,12 @@ First introduced in [Unreleased](https://github.com/Pratiyush/translately/blob/m
 title: Authentication
 parent: Product
 nav_order: 3
+# Override the site-wide `permalink: pretty` so `<picture>` srcs that
+# reference `screenshots/foo.png` (same-dir) resolve to
+# `/product/screenshots/foo.png` in the browser. With the pretty
+# default, this URL would be `/product/auth/` (trailing slash) and
+# `screenshots/foo.png` would 404 at `/product/auth/screenshots/foo.png`.
+permalink: /product/auth.html
 ---
 
 
@@ -3137,6 +3145,8 @@ docker compose up -d postgres mailpit
 title: Organizations, projects, and members
 parent: Product
 nav_order: 5
+# See docs/product/auth.md for why this permalink overrides pretty.
+permalink: /product/organizations-and-projects.html
 ---
 
 # Organizations, projects, and members
