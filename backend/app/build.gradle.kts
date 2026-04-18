@@ -60,10 +60,24 @@ dependencies {
 val openApiSourceFile = layout.buildDirectory.file("openapi/openapi.json")
 val openApiCommittedFile = rootProject.layout.projectDirectory.file("docs/api/openapi.json")
 
+// Quarkus writes the OpenAPI schema to `build/openapi/` during the test
+// task's test-mode boot (not during `quarkusBuild`). Without this the
+// directory is an undeclared side-effect: when Gradle's build cache
+// restores `test` FROM-CACHE (e.g. on a warm CI runner), the file
+// disappears and the downstream `copyOpenApi` / `checkOpenApiUpToDate`
+// tasks fail. Declaring the directory as a task output folds it into
+// the cache envelope.
+tasks.named("test") {
+    outputs.dir(layout.buildDirectory.dir("openapi"))
+}
+
 tasks.register<Copy>("copyOpenApi") {
     group = "openapi"
     description = "Copy the generated OpenAPI JSON into docs/api/openapi.json."
-    dependsOn("quarkusBuild")
+    // `test` is the task that actually boots Quarkus and emits the schema
+    // under `quarkus.smallrye-openapi.store-schema-directory`; `quarkusBuild`
+    // on its own doesn't write the file.
+    dependsOn("test")
     from(openApiSourceFile) {
         rename { "openapi.json" }
     }
@@ -73,7 +87,7 @@ tasks.register<Copy>("copyOpenApi") {
 tasks.register("checkOpenApiUpToDate") {
     group = "verification"
     description = "Fail the build if docs/api/openapi.json differs from the generated schema (run copyOpenApi to fix)."
-    dependsOn("quarkusBuild")
+    dependsOn("test")
     inputs.file(openApiSourceFile)
     inputs.file(openApiCommittedFile)
     doLast {
@@ -82,7 +96,7 @@ tasks.register("checkOpenApiUpToDate") {
         if (!generated.exists()) {
             throw GradleException(
                 "Generated OpenAPI at ${generated.relativeTo(rootDir)} is missing — " +
-                    "did quarkusBuild run with quarkus.smallrye-openapi.store-schema-directory set?",
+                    "run `./gradlew :backend:app:test --rerun` to force a regeneration.",
             )
         }
         if (!committed.exists() || generated.readText() != committed.readText()) {
