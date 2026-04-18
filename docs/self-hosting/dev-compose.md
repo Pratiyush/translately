@@ -25,10 +25,10 @@ docker compose down -v                        # stop AND wipe all data volumes
 |---|---|---|---|
 | Postgres | `postgres://translately:translately@localhost:5432/translately` | user `translately` / pass `translately` | Primary datastore |
 | Redis | `redis://localhost:6379` | none (dev) | Cache, rate limits, sliding-window counters |
-| MinIO API | <http://localhost:9000> | `translately` / `translately-dev` | S3-compatible object storage |
-| MinIO console | <http://localhost:9001> | `translately` / `translately-dev` | Web UI for inspecting buckets |
-| Mailpit | <http://localhost:8025> (web), `localhost:1025` (SMTP) | no auth | Dev mail sink — catches every outbound email |
-| Keycloak | <http://localhost:8180> | `admin` / `admin` | Optional OIDC IdP (profile: `keycloak`) |
+| MinIO API | `http://localhost:9000` | `translately` / `translately-dev` | S3-compatible object storage |
+| MinIO console | `http://localhost:9001` | `translately` / `translately-dev` | Web UI for inspecting buckets |
+| Mailpit | `http://localhost:8025` (web), `localhost:1025` (SMTP) | no auth | Dev mail sink — catches every outbound email |
+| Keycloak | `http://localhost:8180` | `admin` / `admin` | Optional OIDC IdP (profile: `keycloak`) |
 
 The stack uses Compose project name `translately`, so container names are deterministic (`translately-postgres`, `translately-redis`, etc.) — handy for `docker exec`.
 
@@ -134,7 +134,7 @@ Volume: `mailpit-data:/data`.
 
 Healthcheck: `GET /livez`.
 
-Every outbound email sent by the backend in dev lands in Mailpit — open <http://localhost:8025> to see signup verifications, password resets, webhook failure alerts, etc.
+Every outbound email sent by the backend in dev lands in Mailpit — open `http://localhost:8025` to see signup verifications, password resets, webhook failure alerts, etc.
 
 Production changes: **do not** ship Mailpit. Point `TRANSLATELY_MAIL_*` at a real SMTP provider (Amazon SES, Postmark, SendGrid, Mailgun) with auth + TLS + a dedicated sender domain (SPF, DKIM, DMARC).
 
