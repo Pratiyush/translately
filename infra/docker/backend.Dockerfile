@@ -15,9 +15,13 @@ ARG JAVA_VERSION=21
 FROM gradle:8.10-jdk${JAVA_VERSION} AS build
 WORKDIR /workspace
 
-# Cache dependencies first
+# Cache dependencies first. `buildSrc/` houses the precompiled-script
+# convention plugin `translately.quarkus-module` applied by every
+# backend subproject — without it, Gradle fails at plugin resolution
+# during `quarkusBuild`.
 COPY settings.gradle.kts build.gradle.kts gradle.properties* ./
 COPY gradle ./gradle
+COPY buildSrc ./buildSrc
 COPY backend ./backend
 RUN --mount=type=cache,target=/home/gradle/.gradle \
     gradle :backend:app:quarkusBuild -x test --no-daemon --stacktrace
