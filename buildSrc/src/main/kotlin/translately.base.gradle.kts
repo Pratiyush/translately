@@ -34,6 +34,11 @@ tasks.withType<Test>().configureEach {
         showStackTraces = true
         showCauses = true
     }
+    // Quarkus integration tests + Testcontainers use a lot of heap —
+    // CI on GitHub-hosted runners OOM'd `PatAuthenticatorIT` on the
+    // default ~1 GB fork limit. 2 GiB is comfortably above measured
+    // peak RSS and well within the runner's 7 GiB budget.
+    maxHeapSize = "2g"
     finalizedBy(tasks.named("jacocoTestReport"))
 }
 
