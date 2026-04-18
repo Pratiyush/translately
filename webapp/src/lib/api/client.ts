@@ -18,6 +18,7 @@
  * import the `api` singleton exported below for everything else.
  */
 import createClient, { type Middleware } from 'openapi-fetch';
+import { authStore } from '@/lib/auth/AuthStore';
 import type { paths } from './types.gen';
 
 export type { paths } from './types.gen';
@@ -60,8 +61,15 @@ export interface ApiClientOptions {
  * their own with a mocked [fetchImpl] for isolated assertions.
  */
 export function createApiClient(options: ApiClientOptions = {}) {
-  const baseUrl = options.baseUrl ?? '';
-  const fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
+  // openapi-fetch builds a `new URL(path, baseUrl)` per request; an empty
+  // baseUrl throws on a bare `/api/...` path. Default to the current
+  // origin when running in a DOM; tests that pass their own baseUrl win.
+  const baseUrl = options.baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '');
+  // Read `fetch` lazily per call rather than capturing at construction.
+  // Tests that stub `globalThis.fetch` AFTER module load (the normal
+  // vitest pattern) rely on this late-binding.
+  const fetchImpl =
+    options.fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init));
 
   const client = createClient<paths>({ baseUrl, fetch: fetchImpl });
 
@@ -105,11 +113,16 @@ export function unwrap<T>(result: { data?: T; error?: unknown; response: Respons
 }
 
 /**
- * The default, app-wide client. Auth wiring (bearer-token provider) lands
- * with T117 when we have a real access-token store; until then requests
- * are anonymous.
+ * The default, app-wide client. The bearer-token provider reads the
+ * current access token from [authStore] on every request, so a sign-in
+ * or sign-out that mutates the store flows through without rebuilding
+ * the client. Expired-token handling (silent refresh) lands later; for
+ * now the server returns `TOKEN_EXPIRED` and the UI prompts for
+ * re-login.
  */
-export const api: ApiClient = createApiClient();
+export const api: ApiClient = createApiClient({
+  bearerToken: () => authStore.getTokens()?.accessToken ?? null,
+});
 
 // ---------------------------------------------------------------------------
 // internals

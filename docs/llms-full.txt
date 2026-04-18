@@ -2539,6 +2539,22 @@ Translately ships with a self-contained email + password authentication flow. No
 
 Introduced in: **v0.1.0** (Phase 1).
 
+## In the webapp
+
+T117 wires five public routes against these endpoints:
+
+| Route | What it does |
+|---|---|
+| `/signin` | Email + password → `POST /auth/login` → stores the token pair → redirects to the original destination (if the user was bounced from a protected route) or `/`. |
+| `/signup` | Full name + email + password → `POST /auth/signup` → "check your inbox" success screen. No auto-login; the account is unverified until the user clicks the emailed link. |
+| `/verify-email?token=…` | Runs `POST /auth/verify-email` once on mount. Surfaces success / expired-link / consumed-link / missing-token states inline. |
+| `/forgot-password` | Email → `POST /auth/forgot-password` → always "check your inbox" (the backend's anti-enumeration 202 is mirrored in the UI). |
+| `/reset-password?token=…` | New password → `POST /auth/reset-password` → redirects to `/signin` on success. Every active refresh token is invalidated server-side; the user must re-login. |
+
+All five pages use **React Hook Form + Zod** for client-side validation (mirrors the backend's `VALIDATION_FAILED` rules so first-wrong-click feedback is instant) and **TanStack Query** mutations against the **typed `api` client** (T120). Server errors round-trip via `error.code`; localised strings live in [`webapp/src/i18n/en.json`](https://github.com/Pratiyush/translately/blob/master/webapp/src/i18n/en.json) under the `auth.error.*` namespace — unknown codes fall back to `error.message`.
+
+Dev bundles still expose a "Seed dev user" button on `/signin` so reviewers can drop into the shell without a running backend. Production bundles strip it via `import.meta.env.DEV`.
+
 ## Flow at a glance
 
 ```

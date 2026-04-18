@@ -27,6 +27,14 @@ export interface AuthUser {
 }
 
 const STORAGE_KEY = 'translately.mockUser';
+const TOKENS_KEY = 'translately.tokens';
+
+export interface StoredTokens {
+  accessToken: string;
+  accessExpiresAt: string;
+  refreshToken: string;
+  refreshExpiresAt: string;
+}
 
 type Listener = () => void;
 
@@ -112,6 +120,36 @@ class AuthStoreImpl {
 
   signOut(): void {
     this.write(null);
+    this.setTokens(null);
+  }
+
+  /**
+   * Access + refresh token accessors. Tokens persist alongside the user
+   * but in a separate localStorage key so dev-mode mock seeding (which
+   * doesn't have a backend) never resurrects stale credentials.
+   */
+  getTokens(): StoredTokens | null {
+    try {
+      const raw = localStorage.getItem(TOKENS_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as StoredTokens;
+      if (!parsed || typeof parsed.accessToken !== 'string') return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  setTokens(tokens: StoredTokens | null): void {
+    try {
+      if (tokens === null) {
+        localStorage.removeItem(TOKENS_KEY);
+      } else {
+        localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
+      }
+    } catch {
+      // storage unavailable — acceptable
+    }
   }
 }
 

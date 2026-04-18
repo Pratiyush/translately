@@ -7,8 +7,20 @@ import en from './en.json';
  *
  * Never hard-code user-visible English in components — always go through `t()`.
  */
-type Key = keyof typeof en;
+type KnownKey = keyof typeof en;
 
-export function t(key: Key): string {
-  return en[key] ?? key;
+/**
+ * Translate `key`. If the key is unknown, the key itself is returned
+ * verbatim so tests that construct keys dynamically (e.g. `auth.error.XX`)
+ * can detect "no translation" via equality with the key.
+ *
+ * Pass `params` to interpolate `{name}` tokens in the resolved string.
+ */
+export function t(key: KnownKey | string, params?: Record<string, string | number>): string {
+  const source = (en as Record<string, string>)[key as string] ?? key;
+  if (!params) return source;
+  return source.replace(/\{(\w+)\}/g, (match, name: string) => {
+    const v = params[name];
+    return v === undefined ? match : String(v);
+  });
 }
