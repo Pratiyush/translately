@@ -1,10 +1,16 @@
+---
+title: Rate limits
+parent: API reference
+nav_order: 3
+---
+
 # Rate limits
 
 Translately rate-limits every request. Limits are **per-token** (JWT subject, API key, PAT, or anonymous IP) and enforced through a Redis sliding window. The goal is to keep self-hosted instances responsive under accidental loops and genuinely-hostile traffic, not to nickel-and-dime legitimate callers.
 
 Introduced by: lays down in Phase 1 alongside the auth endpoints; takes effect as endpoints go live.
 
-Related: [API conventions steering](../../.kiro/steering/api-conventions.md), [error codes](errors.md#rate-limiting--429), [scopes](scopes.md).
+Related: [API conventions steering](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md), [error codes](errors.md#rate-limiting--429), [scopes](scopes.md).
 
 ## Default limits
 
@@ -65,7 +71,7 @@ Content-Type: application/json
 
 ## Operator tuning
 
-Each limit is a config property under `translately.rate-limit.*` in [`backend/app/src/main/resources/application.yml`](../../backend/app/src/main/resources/application.yml). Override via env var:
+Each limit is a config property under `translately.rate-limit.*` in [`backend/app/src/main/resources/application.yml`](https://github.com/Pratiyush/translately/blob/master/backend/app/src/main/resources/application.yml). Override via env var:
 
 ```
 TRANSLATELY_RATE_LIMIT_AUTHENTICATED_READ=1200

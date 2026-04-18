@@ -1,3 +1,10 @@
+---
+title: '0001 — Argon2id for password hashing'
+parent: ADRs
+grand_parent: Architecture
+nav_order: 1
+---
+
 # 0001 — Argon2id for password and token hashing
 
 - **Status:** Accepted
@@ -78,4 +85,4 @@ We store the full string in a single `VARCHAR(256)` column (`users.password_hash
 - Argon2 RFC 9106: <https://datatracker.ietf.org/doc/html/rfc9106>
 - `argon2-jvm` library: <https://github.com/phxql/argon2-jvm> (MIT)
 - [Auth architecture](../auth.md)
-- [PasswordHasher source](../../../backend/security/src/main/kotlin/io/translately/security/password/PasswordHasher.kt)
+- [PasswordHasher source](https://github.com/Pratiyush/translately/blob/master/backend/security/src/main/kotlin/io/translately/security/password/PasswordHasher.kt)

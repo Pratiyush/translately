@@ -1,3 +1,9 @@
+---
+title: Module map
+parent: Architecture
+nav_order: 1
+---
+
 # Module map
 
 Translately's backend is a single Gradle (Kotlin DSL) build with 13 modules under `:backend:*`. Each module is a narrow library; the single runnable artefact is `:backend:app`, which wires them into a Quarkus application.
@@ -67,4 +73,4 @@ flowchart TD
 - **Testability.** Each leaf module is trivially unit-testable with MockK. Integration tests (`*IT`) live only in `:backend:app` and bring the full Quarkus + Testcontainers environment up; there is no "almost full" middle tier.
 - **Clean replacement.** Adapters in `:ai`, `:mt`, `:storage`, `:webhooks`, `:cdn` implement a port interface defined in their own package. Adding a new provider is a new class in the same module — no other modules change.
 
-See [`.kiro/steering/architecture.md`](../../.kiro/steering/architecture.md) for the authoritative steering rule.
+See [`.kiro/steering/architecture.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/architecture.md) for the authoritative steering rule.

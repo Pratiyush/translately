@@ -28,6 +28,9 @@ exclude = [
 
     # GitHub security advisories — returns 302/503 to unauthenticated clients
     '^https://github\.com/Pratiyush/translately/security/advisories/new/?$',
+
+    # docs bundle ZIP — built inside the pages.yml workflow, not committed
+    'downloads/translately-docs\.zip$',
 ]
 
 # Accept common redirect status codes so 302 login walls don't trip the checker

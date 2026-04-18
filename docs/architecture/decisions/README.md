@@ -1,3 +1,11 @@
+---
+title: ADRs
+parent: Architecture
+nav_order: 9
+has_children: true
+permalink: /architecture/decisions/
+---
+
 # Architecture Decision Records (ADRs)
 
 This directory captures non-trivial technical decisions made during Translately's development. Each record is immutable once accepted — supersede rather than edit.

@@ -1,3 +1,9 @@
+---
+title: Authorization
+parent: Architecture
+nav_order: 6
+---
+
 # Authorization — scopes and roles
 
 Translately uses a **scope-based authorization model** layered on top of coarse **organization roles**. Scopes are the atomic permission token; roles are the human-facing shorthand that maps to a curated scope set.
@@ -13,7 +19,7 @@ Every scope is a dotted, lowercase token: `<domain>.<action>` where `<action>` �
 - `write` **implies** `read` at the resolver level — a caller with `keys.write` passes a `keys.read` check.
 - **Never rename an existing token.** API keys, PATs, and customer-issued credentials embed these strings in storage. Add a new scope and deprecate the old one; remove one minor version later.
 
-The full catalogue lives in [`io.translately.security.Scope`](../../backend/security/src/main/kotlin/io/translately/security/Scope.kt) and is surfaced in the [API scopes reference](../api/scopes.md).
+The full catalogue lives in [`io.translately.security.Scope`](https://github.com/Pratiyush/translately/blob/master/backend/security/src/main/kotlin/io/translately/security/Scope.kt) and is surfaced in the [API scopes reference](../api/scopes.md).
 
 ## Role → scope mapping
 
@@ -63,9 +69,9 @@ sequenceDiagram
 
 The filters in code:
 
-- [`TenantRequestFilter`](../../backend/api/src/main/kotlin/io/translately/api/tenant/TenantRequestFilter.kt) — runs first. Extracts the tenant identifier from the URL path.
+- [`TenantRequestFilter`](https://github.com/Pratiyush/translately/blob/master/backend/api/src/main/kotlin/io/translately/api/tenant/TenantRequestFilter.kt) — runs first. Extracts the tenant identifier from the URL path.
 - `JwtSecurityScopesFilter` — runs at `Priorities.AUTHENTICATION`. Verifies the credential, hydrates `SecurityScopes` with the resolved scope set.
-- [`ScopeAuthorizationFilter`](../../backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) — runs at `Priorities.AUTHORIZATION`. Reads `@RequiresScope` off the resource method; fails fast with `INSUFFICIENT_SCOPE` if the request doesn't cover it.
+- [`ScopeAuthorizationFilter`](https://github.com/Pratiyush/translately/blob/master/backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) — runs at `Priorities.AUTHORIZATION`. Reads `@RequiresScope` off the resource method; fails fast with `INSUFFICIENT_SCOPE` if the request doesn't cover it.
 
 ## `@RequiresScope` usage
 
@@ -85,7 +91,7 @@ class ProjectResource {
 
 Multiple scopes in `@RequiresScope` are an **AND** — the caller must hold all of them. Document the `OR` case explicitly in the resource if you need it; don't overload the annotation.
 
-`@RequiresScope` is only valid on JAX-RS resource methods (or the class, in which case it applies to every method). See the [`RequiresScope.kt`](../../backend/security/src/main/kotlin/io/translately/security/RequiresScope.kt) annotation and [`ScopeAuthorizationFilter.kt`](../../backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) enforcer.
+`@RequiresScope` is only valid on JAX-RS resource methods (or the class, in which case it applies to every method). See the [`RequiresScope.kt`](https://github.com/Pratiyush/translately/blob/master/backend/security/src/main/kotlin/io/translately/security/RequiresScope.kt) annotation and [`ScopeAuthorizationFilter.kt`](https://github.com/Pratiyush/translately/blob/master/backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) enforcer.
 
 ## Error contract
 

@@ -1,3 +1,9 @@
+---
+title: Authentication endpoints
+parent: API reference
+nav_order: 5
+---
+
 # API — authentication
 
 This page covers **HTTP-level** authentication — the endpoints, the headers, and the payload shapes. For the design-level view (why rotation, why Argon2id, credential-type tradeoffs), see [auth architecture](../architecture/auth.md).

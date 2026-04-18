@@ -1,3 +1,9 @@
+---
+title: Webapp architecture
+parent: Architecture
+nav_order: 8
+---
+
 # Webapp architecture
 
 Translately's webapp is a single-page React application built with Vite, Tailwind, shadcn/ui primitives, and TanStack Query. It renders against the REST API described in [`docs/api/`](../api/) and persists nothing server-side that the API itself doesn't already persist.
@@ -62,7 +68,7 @@ Nothing else sits in global state. Route-local state stays in components; epheme
 
 ## Routing
 
-[`router.tsx`](../../webapp/src/router.tsx) declares:
+[`router.tsx`](https://github.com/Pratiyush/translately/blob/master/webapp/src/router.tsx) declares:
 
 - `/signin` — public, renders outside the shell.
 - Everything else — inside `<RequireAuth><AppShell/></RequireAuth>`.
@@ -108,4 +114,4 @@ Phase 1 adds an **auto-generated** TypeScript client (T120) derived from the com
 - **No Redux, no Zustand, no MobX.** The three-store model above covers every real requirement; adding a redux-style tool would be a dependency without a user.
 - **Tailwind over CSS-in-JS.** Build-time class generation means zero-runtime styling; `class="dark"` toggling on `<html>` means the theme switch is a single-pass repaint.
 
-See [`.kiro/steering/ui-conventions.md`](../../.kiro/steering/ui-conventions.md) for the authoritative UI / accessibility steering rules.
+See [`.kiro/steering/ui-conventions.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/ui-conventions.md) for the authoritative UI / accessibility steering rules.

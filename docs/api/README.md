@@ -1,8 +1,15 @@
+---
+title: API reference
+nav_order: 3
+has_children: true
+permalink: /api/
+---
+
 # API reference
 
 Translately exposes a single versioned HTTP API under `/api/v1/`. This tree is the canonical reference.
 
-Per [CLAUDE.md rule #10](../../CLAUDE.md), every PR that changes an endpoint, scope, error code, rate-limit, or versioning rule lands its matching page update here — including a regenerated [`openapi.json`](openapi.json) — in the same PR.
+Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CLAUDE.md), every PR that changes an endpoint, scope, error code, rate-limit, or versioning rule lands its matching page update here — including a regenerated [`openapi.json`](openapi.json) — in the same PR.
 
 ## Pages
 
@@ -13,7 +20,7 @@ Per [CLAUDE.md rule #10](../../CLAUDE.md), every PR that changes an endpoint, sc
 - [Versioning](versioning.md) — URL-path versioning, deprecation policy, breaking-change rule.
 - [Authentication](auth.md) — JWT vs. PAT vs. API key, bearer-credential split, refresh rotation.
 
-## Conventions (mirror of [`.kiro/steering/api-conventions.md`](../../.kiro/steering/api-conventions.md))
+## Conventions (mirror of [`.kiro/steering/api-conventions.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md))
 
 - **Base path:** `/api/v1/`. v2 only lands when v1 cannot absorb a change without breaking clients.
 - **Errors:** uniform envelope — `{"error":{"code":"ERROR_CODE","message":"human readable","details":{...}}}`. Codes are `SCREAMING_SNAKE_CASE`, stable across minor versions.

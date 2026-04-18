@@ -7,30 +7,41 @@ The canonical LLM-ingestible corpus for Translately's documentation, generated f
 ## Product
 
 - [Product docs index](https://pratiyush.github.io/translately/product/): User-visible feature walkthroughs
-- [Application shell](https://pratiyush.github.io/translately/product/app-shell.md): Nav, org switcher, user menu, routing
-- [Theming](https://pratiyush.github.io/translately/product/theming.md): Light / dark / system toggle + persistence
-- [Authentication](https://pratiyush.github.io/translately/product/auth.md): Signup, email verify, login, password reset
+- [Application shell](https://pratiyush.github.io/translately/product/app-shell/): Nav, org switcher, user menu, routing
+- [Theming](https://pratiyush.github.io/translately/product/theming/): Light / dark / system toggle + persistence
+- [Authentication](https://pratiyush.github.io/translately/product/auth/): Signup, email verify, login, password reset
 
 ## API
 
 - [API overview](https://pratiyush.github.io/translately/api/): Conventions, error envelope, pagination, IDs
 - [OpenAPI 3.1 spec](https://pratiyush.github.io/translately/api/openapi.json): Machine-readable source of truth
-- [Scopes](https://pratiyush.github.io/translately/api/scopes.md): Permission scope matrix
-- [Error codes](https://pratiyush.github.io/translately/api/errors.md): Stable `error.code` catalogue
-- [Rate limits](https://pratiyush.github.io/translately/api/rate-limits.md): Per-token and per-endpoint policy
-- [Versioning](https://pratiyush.github.io/translately/api/versioning.md): URL-path versioning + deprecation policy
+- [Scopes](https://pratiyush.github.io/translately/api/scopes/): Permission scope matrix
+- [Error codes](https://pratiyush.github.io/translately/api/errors/): Stable `error.code` catalogue
+- [Rate limits](https://pratiyush.github.io/translately/api/rate-limits/): Per-token and per-endpoint policy
+- [Versioning](https://pratiyush.github.io/translately/api/versioning/): URL-path versioning + deprecation policy
+- [Authentication endpoints](https://pratiyush.github.io/translately/api/auth/): HTTP-level walkthrough of /auth/*
 
 ## Architecture
 
 - [Architecture index](https://pratiyush.github.io/translately/architecture/): Module map + system overview
 - [ADR index](https://pratiyush.github.io/translately/architecture/decisions/): All accepted decision records
-- [Data model](https://pratiyush.github.io/translately/architecture/data-model.md): ER diagram + relationships
-- [Multi-tenancy](https://pratiyush.github.io/translately/architecture/multi-tenancy.md): TenantContext + row-level isolation
-- [Crypto](https://pratiyush.github.io/translately/architecture/crypto.md): Envelope encryption for BYOK secrets
+- [Module map](https://pratiyush.github.io/translately/architecture/modules/): 13-module Gradle graph + ownership
+- [Data model](https://pratiyush.github.io/translately/architecture/data-model/): ER diagram + relationships + V1 migration story
+- [Request lifecycle](https://pratiyush.github.io/translately/architecture/request-lifecycle/): Filter chain + exception mappers
+- [Multi-tenancy](https://pratiyush.github.io/translately/architecture/multi-tenancy/): TenantContext + row-level isolation
+- [Authentication](https://pratiyush.github.io/translately/architecture/auth/): JWT issuer + rotation
+- [Authorization](https://pratiyush.github.io/translately/architecture/authorization/): Scopes + role mapping
+- [Crypto](https://pratiyush.github.io/translately/architecture/crypto/): Envelope encryption for BYOK secrets
+- [Webapp](https://pratiyush.github.io/translately/architecture/webapp/): SPA stack + state model
 
 ## Self-hosting
 
-- [Hardening checklist](https://pratiyush.github.io/translately/self-hosting/hardening.md): Production-readiness checklist
+- [Self-hosting index](https://pratiyush.github.io/translately/self-hosting/): Operator guides
+- [Hardening checklist](https://pratiyush.github.io/translately/self-hosting/hardening/): Production-readiness checklist
+
+## Download
+
+- [Full docs bundle (ZIP)](https://pratiyush.github.io/translately/downloads/translately-docs.zip): Every raw .md / .txt / image under docs/ — offline snapshot of the latest `master`
 
 ## Optional
 

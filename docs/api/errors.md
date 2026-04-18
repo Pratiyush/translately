@@ -1,10 +1,16 @@
+---
+title: Error codes
+parent: API reference
+nav_order: 2
+---
+
 # Error-code catalogue
 
 Every 4xx / 5xx response from the Translately API carries a uniform envelope. `error.code` is **stable across minor versions** — CLIs, SDKs, and the webapp match on it rather than parsing the human-readable message.
 
 Introduced by: [T108](https://github.com/Pratiyush/translately/issues/133) (scope authorization + envelope).
 
-Related: [API conventions steering](../../.kiro/steering/api-conventions.md), [scopes](scopes.md), [auth](auth.md).
+Related: [API conventions steering](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md), [scopes](scopes.md), [auth](auth.md).
 
 ## Envelope shape
 
@@ -51,7 +57,7 @@ Content type: `application/json; charset=utf-8`. HTTP status is driven by the co
 
 #### `INSUFFICIENT_SCOPE` in detail
 
-Exact response body from [`InsufficientScopeExceptionMapper`](../../backend/api/src/main/kotlin/io/translately/api/security/InsufficientScopeExceptionMapper.kt):
+Exact response body from [`InsufficientScopeExceptionMapper`](https://github.com/Pratiyush/translately/blob/master/backend/api/src/main/kotlin/io/translately/api/security/InsufficientScopeExceptionMapper.kt):
 
 ```json
 {
@@ -115,7 +121,7 @@ The uniform envelope **never** includes:
 - Request bodies for authenticated endpoints.
 - Webhook bodies.
 
-See the steering rule in [`.kiro/steering/api-conventions.md`](../../.kiro/steering/api-conventions.md#logging).
+See the steering rule in [`.kiro/steering/api-conventions.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md#logging).
 
 ## For SDK authors
 
@@ -135,4 +141,4 @@ Sunset: Sat, 01 Nov 2026 00:00:00 GMT
 Link: <https://github.com/Pratiyush/translately/blob/master/docs/api/errors.md#deprecated>; rel="deprecation"
 ```
 
-Announced in [`CHANGELOG.md`](../../CHANGELOG.md) under `### Deprecated` at the release the deprecation lands, moved to `### Removed` at the sunset release.
+Announced in [`CHANGELOG.md`](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md) under `### Deprecated` at the release the deprecation lands, moved to `### Removed` at the sunset release.

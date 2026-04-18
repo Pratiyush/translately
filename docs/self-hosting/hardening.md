@@ -1,3 +1,9 @@
+---
+title: Hardening checklist
+parent: Self-hosting
+nav_order: 1
+---
+
 # Hardening checklist
 
 > **Status:** placeholder. This page ships fully in Phase 1 (`v0.1.0`) once auth and real deployments land. If you need hardening guidance before then, the list below is an outline — treat it as advisory, not exhaustive.
@@ -17,4 +23,4 @@
 
 ## Reporting security issues
 
-See [SECURITY.md](../../SECURITY.md). Do not file public issues for vulnerabilities — use GitHub Security Advisories or pratiyush1@gmail.com.
+See [SECURITY.md](https://github.com/Pratiyush/translately/blob/master/SECURITY.md). Do not file public issues for vulnerabilities — use GitHub Security Advisories or pratiyush1@gmail.com.

@@ -1,8 +1,14 @@
+---
+title: Theming — light / dark / system
+parent: Product
+nav_order: 2
+---
+
 # Theming — light / dark / system
 
 Translately ships with three theme modes: **light**, **dark**, and **system**. Every screen and component is designed and tested in all three. The user's choice persists across reloads and cross-tab windows; while the mode is `system`, a live OS preference change flips the UI without a reload.
 
-Introduced by: [T114](https://github.com/Pratiyush/translately/issues/137) · Ships in `v0.1.0` · Source: [`webapp/src/theme/ThemeProvider.tsx`](../../webapp/src/theme/ThemeProvider.tsx), [`webapp/src/components/ThemeToggle.tsx`](../../webapp/src/components/ThemeToggle.tsx).
+Introduced by: [T114](https://github.com/Pratiyush/translately/issues/137) · Ships in `v0.1.0` · Source: [`webapp/src/theme/ThemeProvider.tsx`](https://github.com/Pratiyush/translately/blob/master/webapp/src/theme/ThemeProvider.tsx), [`webapp/src/components/ThemeToggle.tsx`](https://github.com/Pratiyush/translately/blob/master/webapp/src/components/ThemeToggle.tsx).
 
 Related: [application shell](app-shell.md), [webapp architecture](../architecture/webapp.md).
 
@@ -27,7 +33,7 @@ Three ways your preference gets picked up:
 
 All themed colours flow through design-system CSS custom properties declared on `:root` for light and overridden under `.dark` for dark. Components never reference hex or rgb values directly — always `hsl(var(--…))`.
 
-Canonical tokens (from [`webapp/src/index.css`](../../webapp/src/index.css)):
+Canonical tokens (from [`webapp/src/index.css`](https://github.com/Pratiyush/translately/blob/master/webapp/src/index.css)):
 
 | Token | Role |
 |---|---|
@@ -87,4 +93,4 @@ None dedicated yet. The toggle is reachable via Tab/Shift+Tab. A `⌘K`-discover
 
 ## Changelog
 
-First introduced in [Unreleased](../../CHANGELOG.md) (Phase 1). Ships with `v0.1.0`.
+First introduced in [Unreleased](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md) (Phase 1). Ships with `v0.1.0`.

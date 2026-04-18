@@ -1,6 +1,12 @@
+---
+title: Data model
+parent: Architecture
+nav_order: 2
+---
+
 # Data model
 
-Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under [`backend/data/src/main/resources/db/migration/`](../../backend/data/src/main/resources/db/migration/). This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
+Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under [`backend/data/src/main/resources/db/migration/`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/). This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
 
 Introduced by: [T101](https://github.com/Pratiyush/translately/issues/129) · First migration: `V1__auth_and_orgs.sql`.
 
@@ -13,7 +19,7 @@ Every durable entity carries **two** identifiers:
 
 **Why both.** Using a bigserial for FKs keeps indexes tiny and joins fast; exposing ULIDs on the wire avoids leaking row counts, dodges integer-enumeration attacks, and lets callers sort by ID as a coarse creation-time sort.
 
-Generation lives in [`io.translately.data.Ulid`](../../backend/data/src/main/kotlin/io/translately/data/Ulid.kt); a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
+Generation lives in [`io.translately.data.Ulid`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/kotlin/io/translately/data/Ulid.kt); a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
 
 ## Conventions
 
@@ -160,7 +166,7 @@ Anything referenced via `FOREIGN KEY … ON DELETE CASCADE` hard-deletes automat
 
 ## V1 migration story
 
-[`V1__auth_and_orgs.sql`](../../backend/data/src/main/resources/db/migration/V1__auth_and_orgs.sql) is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
+[`V1__auth_and_orgs.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V1__auth_and_orgs.sql) is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
 
 ### Creation order
 
@@ -232,4 +238,4 @@ Anything else can run off the uniques / PKs; we'll add more indexes in later pha
 
 Phase 2 (`V2__keys_translations_icu.sql`) introduces `keys`, `translations`, `namespaces`, `tags`, `comments`, `activities`. Phase 3 adds `import_jobs` / `export_jobs`. Phase 4 adds translation memory, budgets, per-provider audit rows. The ID and naming conventions above are inviolate across all of them.
 
-See [`.kiro/steering/architecture.md`](../../.kiro/steering/architecture.md) for the operational guardrails (forward-only migrations, no destructive changes without a deprecation window).
+See [`.kiro/steering/architecture.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/architecture.md) for the operational guardrails (forward-only migrations, no destructive changes without a deprecation window).

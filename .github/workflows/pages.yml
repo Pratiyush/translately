@@ -18,22 +18,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    name: Build (Jekyll + just-the-docs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build the downloadable ZIP BEFORE Jekyll so it ends up inside _site.
+      # The bundle contains every raw .md / .txt / image under docs/ so
+      # offline users can consume the full corpus without cloning.
+      - name: Build docs bundle (ZIP)
+        run: |
+          mkdir -p docs/downloads
+          (cd docs && zip -r downloads/translately-docs.zip . \
+             -x "downloads/*" "_site/*" "Gemfile*" "_config.yml")
+          ls -la docs/downloads/
+
+      - uses: actions/configure-pages@v5
+
+      - name: Build with Jekyll (remote_theme = just-the-docs)
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
   deploy:
+    name: Deploy to GitHub Pages
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload docs/
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
-
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
