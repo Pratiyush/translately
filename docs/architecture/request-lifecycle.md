@@ -1,10 +1,16 @@
+---
+title: Request lifecycle
+parent: Architecture
+nav_order: 3
+---
+
 # Request lifecycle
 
 A single Translately HTTP request flows through a fixed chain of JAX-RS filters before reaching the resource method, and a fixed chain of exception mappers on the way back. This page documents the order, the invariants each filter maintains, and the error envelope that leaves the server.
 
 Introduced by: [T108](https://github.com/Pratiyush/translately/issues/133) (`@RequiresScope` + `ScopeAuthorizationFilter`), [T111](https://github.com/Pratiyush/translately/issues/135) (`TenantRequestFilter`), T103 (auth endpoints), T104 (JWT issuer).
 
-Related: [auth architecture](auth.md), [authorization](authorization.md), [multi-tenancy](multi-tenancy.md), [API conventions](../../.kiro/steering/api-conventions.md).
+Related: [auth architecture](auth.md), [authorization](authorization.md), [multi-tenancy](multi-tenancy.md), [API conventions](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md).
 
 ## Filter chain (request side)
 

@@ -1,8 +1,15 @@
+---
+title: Product
+nav_order: 2
+has_children: true
+permalink: /product/
+---
+
 # Product docs
 
 User-facing documentation of every shipped feature. One page per user-visible flow, with light + dark screenshots and keyboard / a11y notes.
 
-Per [CLAUDE.md rule #10](../../CLAUDE.md), every PR that changes a user-visible flow lands its matching page here in the same PR.
+Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CLAUDE.md), every PR that changes a user-visible flow lands its matching page here in the same PR.
 
 ## Index
 

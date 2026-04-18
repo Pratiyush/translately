@@ -1,3 +1,10 @@
+---
+title: ADR template (not an ADR)
+parent: ADRs
+grand_parent: Architecture
+nav_exclude: true
+---
+
 # NNNN — Title of decision
 
 - **Status:** Proposed | Accepted | Superseded by `NNNN-…` | Deprecated

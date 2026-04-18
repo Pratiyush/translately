@@ -1,8 +1,14 @@
+---
+title: Application shell
+parent: Product
+nav_order: 1
+---
+
 # Application shell
 
 The application shell is the persistent chrome every authenticated route renders inside — the top bar, primary navigation, org switcher, and user menu. Route changes swap only the inner `<main>` region, so focus, scroll position, and transient state stay put.
 
-Introduced by: [T115](https://github.com/Pratiyush/translately/issues/138) · Ships in `v0.1.0` · Source: [`webapp/src/components/shell/`](../../webapp/src/components/shell/).
+Introduced by: [T115](https://github.com/Pratiyush/translately/issues/138) · Ships in `v0.1.0` · Source: [`webapp/src/components/shell/`](https://github.com/Pratiyush/translately/blob/master/webapp/src/components/shell/).
 
 Related: [theming](theming.md), [authentication](auth.md), [webapp architecture](../architecture/webapp.md).
 
@@ -58,7 +64,7 @@ Keyboard + a11y:
 
 Three destinations: **Dashboard** (`/`), **Organizations** (`/orgs`), **Projects** (`/projects`). Each renders as a `<NavLink>` from React Router, which annotates the active entry with `aria-current="page"` for assistive tech. The active link also flips to the `--accent` background token.
 
-Extending: add a new `NavItem` entry in [`NavLinks.tsx`](../../webapp/src/components/shell/NavLinks.tsx). i18n keys go under `nav.*` in [`webapp/src/i18n/en.json`](../../webapp/src/i18n/en.json).
+Extending: add a new `NavItem` entry in [`NavLinks.tsx`](https://github.com/Pratiyush/translately/blob/master/webapp/src/components/shell/NavLinks.tsx). i18n keys go under `nav.*` in [`webapp/src/i18n/en.json`](https://github.com/Pratiyush/translately/blob/master/webapp/src/i18n/en.json).
 
 ## Route integration
 
@@ -96,7 +102,7 @@ router.tsx
 
 ## Tested paths
 
-From [`webapp/src/components/shell/*.test.tsx`](../../webapp/src/components/shell/):
+From [`webapp/src/components/shell/*.test.tsx`](https://github.com/Pratiyush/translately/blob/master/webapp/src/components/shell/):
 
 - `AppShell.test.tsx` — renders header + main, nests the outlet.
 - `TopBar.test.tsx` — brand link present, nav labelled "Primary", theme toggle + user menu present.
@@ -107,4 +113,4 @@ From [`webapp/src/components/shell/*.test.tsx`](../../webapp/src/components/shel
 
 ## Changelog
 
-First introduced in [Unreleased](../../CHANGELOG.md) (Phase 1). Ships with `v0.1.0`.
+First introduced in [Unreleased](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md) (Phase 1). Ships with `v0.1.0`.

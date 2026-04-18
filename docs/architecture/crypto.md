@@ -1,3 +1,9 @@
+---
+title: Crypto — envelope encryption
+parent: Architecture
+nav_order: 7
+---
+
 # Crypto — envelope encryption
 
 Translately encrypts at-rest secrets using AES-256-GCM envelope encryption. The only secret outside the database is the **Key Encryption Key (KEK)**, injected by the operator at boot via an environment variable. Every secret in the database gets its own **Data Encryption Key (DEK)**, and the DEK itself is stored encrypted alongside the ciphertext.
@@ -19,7 +25,7 @@ Envelope encryption fixes both:
 
 ## Envelope layout
 
-Implemented in [`io.translately.security.crypto.CryptoService`](../../backend/security/src/main/kotlin/io/translately/security/crypto/CryptoService.kt). Every envelope is a single `bytea`:
+Implemented in [`io.translately.security.crypto.CryptoService`](https://github.com/Pratiyush/translately/blob/master/backend/security/src/main/kotlin/io/translately/security/crypto/CryptoService.kt). Every envelope is a single `bytea`:
 
 | Offset | Bytes | Meaning |
 |---|---|---|

@@ -1,3 +1,9 @@
+---
+title: Multi-tenancy
+parent: Architecture
+nav_order: 4
+---
+
 # Multi-tenancy
 
 Translately is a single-process, multi-tenant server. Every business entity (project, key, translation, API key, screenshot, webhook) hangs off an organization; a request either scopes to exactly one organization or it's a cross-org endpoint (login, signup, organization listing, health, metrics).
@@ -31,7 +37,7 @@ Both are accepted at every endpoint; the service layer uses whichever hits first
 
 ## `TenantContext`
 
-[`io.translately.security.tenant.TenantContext`](../../backend/security/src/main/kotlin/io/translately/security/tenant/TenantContext.kt) is a `@RequestScoped` CDI bean holding exactly the string the client sent — never the resolved internal id.
+[`io.translately.security.tenant.TenantContext`](https://github.com/Pratiyush/translately/blob/master/backend/security/src/main/kotlin/io/translately/security/tenant/TenantContext.kt) is a `@RequestScoped` CDI bean holding exactly the string the client sent — never the resolved internal id.
 
 ```kotlin
 @RequestScoped
@@ -51,7 +57,7 @@ Two invariants:
 
 ## `TenantRequestFilter`
 
-[`io.translately.api.tenant.TenantRequestFilter`](../../backend/api/src/main/kotlin/io/translately/api/tenant/TenantRequestFilter.kt) is a JAX-RS `ContainerRequestFilter` at priority `AUTHENTICATION - 100` — it runs **before** every authenticator.
+[`io.translately.api.tenant.TenantRequestFilter`](https://github.com/Pratiyush/translately/blob/master/backend/api/src/main/kotlin/io/translately/api/tenant/TenantRequestFilter.kt) is a JAX-RS `ContainerRequestFilter` at priority `AUTHENTICATION - 100` — it runs **before** every authenticator.
 
 Pseudocode:
 

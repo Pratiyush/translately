@@ -1,8 +1,14 @@
+---
+title: Versioning
+parent: API reference
+nav_order: 4
+---
+
 # API versioning
 
 The Translately REST API is versioned in the **URL path**: every endpoint lives under `/api/v1/`. This page documents what is and isn't a breaking change, how deprecations roll out, and the client-compatibility contract.
 
-Related: [API conventions steering](../../.kiro/steering/api-conventions.md), [error codes](errors.md), [changelog](../../CHANGELOG.md).
+Related: [API conventions steering](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md), [error codes](errors.md), [changelog](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md).
 
 ## Contract
 
@@ -46,7 +52,7 @@ When a field, endpoint, or error code is on its way out:
    Sunset: Sat, 01 Nov 2026 00:00:00 GMT
    Link: <https://github.com/Pratiyush/translately/blob/master/docs/api/errors.md#deprecated>; rel="deprecation"
    ```
-3. **Cross-link from the docs.** The migration path lives under [`docs/migration/`](../../docs) when cross-version migration is needed.
+3. **Cross-link from the docs.** The migration path lives under [`docs/migration/`](https://github.com/Pratiyush/translately/blob/master/docs) when cross-version migration is needed.
 4. **Sunset at the announced release.** Move the CHANGELOG entry from `### Deprecated` to `### Removed`.
 
 Minimum deprecation window: **one minor version**. Longer for anything SDK consumers are likely to hit.
@@ -85,6 +91,6 @@ Path-versioning keeps a curl one-liner copy-pasteable and makes the `v1` → `v2
 
 ## See also
 
-- [`CHANGELOG.md`](../../CHANGELOG.md) — every release documents its Added / Changed / Deprecated / Removed / Fixed / Security sections.
+- [`CHANGELOG.md`](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md) — every release documents its Added / Changed / Deprecated / Removed / Fixed / Security sections.
 - [Error catalogue](errors.md) — the stable-across-versions contract.
-- [`.kiro/steering/api-conventions.md`](../../.kiro/steering/api-conventions.md) — the authoritative steering version of this page.
+- [`.kiro/steering/api-conventions.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md) — the authoritative steering version of this page.

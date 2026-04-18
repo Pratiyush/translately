@@ -1,8 +1,15 @@
+---
+title: Architecture
+nav_order: 4
+has_children: true
+permalink: /architecture/
+---
+
 # Architecture docs
 
-High-level architecture of the Translately platform. The canonical steering doc is [`.kiro/steering/architecture.md`](../../.kiro/steering/architecture.md); this tree expands on it with diagrams, module maps, and Architecture Decision Records (ADRs).
+High-level architecture of the Translately platform. The canonical steering doc is [`.kiro/steering/architecture.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/architecture.md); this tree expands on it with diagrams, module maps, and Architecture Decision Records (ADRs).
 
-Per [CLAUDE.md rule #10](../../CLAUDE.md), every PR that introduces a non-trivial technical decision lands an ADR here in the same PR.
+Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CLAUDE.md), every PR that introduces a non-trivial technical decision lands an ADR here in the same PR.
 
 ## Overview
 

@@ -1,6 +1,9 @@
 ---
 title: Authentication
+parent: Product
+nav_order: 3
 ---
+
 
 # Authentication
 

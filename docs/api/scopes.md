@@ -1,3 +1,9 @@
+---
+title: Scopes
+parent: API reference
+nav_order: 1
+---
+
 # Permission scopes
 
 Every protected endpoint in the Translately API declares the scope(s) a caller must hold. Scopes are the atomic unit of authorization — API keys and PATs carry scope sets directly, user JWTs derive them from organization-role membership.
@@ -18,7 +24,7 @@ Each scope is a dotted, lowercase token: `<domain>.<action>` where `<action>` is
 
 ## Catalogue
 
-The full 31-token catalogue is defined in [`io.translately.security.Scope`](../../backend/security/src/main/kotlin/io/translately/security/Scope.kt). Tokens are grouped by domain:
+The full 31-token catalogue is defined in [`io.translately.security.Scope`](https://github.com/Pratiyush/translately/blob/master/backend/security/src/main/kotlin/io/translately/security/Scope.kt). Tokens are grouped by domain:
 
 ### Organization + membership
 
@@ -108,9 +114,9 @@ See [`docs/architecture/authorization.md`](../architecture/authorization.md) for
 ## How a scope is checked
 
 1. The authenticator (JWT / API key / PAT) resolves the caller's full scope set into `SecurityScopes`.
-2. [`ScopeAuthorizationFilter`](../../backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) reads the `@RequiresScope(...)` annotation on the target resource method.
+2. [`ScopeAuthorizationFilter`](https://github.com/Pratiyush/translately/blob/master/backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) reads the `@RequiresScope(...)` annotation on the target resource method.
 3. If `SecurityScopes ⊇ required`, the request continues; otherwise the filter throws `InsufficientScopeException`.
-4. [`InsufficientScopeExceptionMapper`](../../backend/api/src/main/kotlin/io/translately/api/security/InsufficientScopeExceptionMapper.kt) serialises that to a 403 with the [`INSUFFICIENT_SCOPE`](errors.md#insufficient_scope) envelope.
+4. [`InsufficientScopeExceptionMapper`](https://github.com/Pratiyush/translately/blob/master/backend/api/src/main/kotlin/io/translately/api/security/InsufficientScopeExceptionMapper.kt) serialises that to a 403 with the [`INSUFFICIENT_SCOPE`](errors.md#insufficient_scope) envelope.
 
 Multiple scopes on `@RequiresScope(A, B)` are an **AND** — the caller must hold every listed scope. If you need OR semantics, document it explicitly in the endpoint and express the alternative in code; don't overload the annotation.
 

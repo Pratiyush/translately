@@ -1,3 +1,9 @@
+---
+title: Authentication architecture
+parent: Architecture
+nav_order: 5
+---
+
 # Authentication architecture
 
 This page documents how Translately authenticates callers — the JWT format, refresh-token rotation, API-key and PAT validation, and the module boundaries that keep these pieces cleanly separable.
