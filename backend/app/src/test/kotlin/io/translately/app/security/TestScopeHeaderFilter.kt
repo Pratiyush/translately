@@ -11,20 +11,27 @@ import jakarta.ws.rs.ext.Provider
 
 /**
  * Test-only authenticator: reads the space-separated `X-Test-Scopes` header
- * and *unions* the parsed [Scope] set into the request-scoped
- * [SecurityScopes] bean. Runs at `Priorities.AUTHENTICATION`, alongside the
- * real `JwtSecurityScopesFilter`.
+ * and **unions** the parsed [Scope] set into the request-scoped
+ * [SecurityScopes] bean. Runs at `Priorities.AUTHENTICATION`, i.e. before
+ * `ScopeAuthorizationFilter` (which runs at `AUTHORIZATION`).
  *
  * ### Why union, not replace?
  *
- * `JwtSecurityScopesFilter` also runs at `AUTHENTICATION`. Ordering between
- * request filters at the same priority is not deterministic in JAX-RS, so
- * both filters treat `SecurityScopes` as additive — whichever runs second
- * must not clobber what the first one granted. Previously this filter
- * unconditionally called `grantAll(...)` (which clears then adds); when the
- * header was absent that wiped out any JWT-granted scopes, intermittently
- * causing 403 `INSUFFICIENT_SCOPE` on endpoints that should have passed.
- * See issue #151. The filter now no-ops when the header is absent.
+ * Multiple authenticators run at `AUTHENTICATION` priority —
+ * [io.translately.api.security.JwtSecurityScopesFilter],
+ * [io.translately.api.security.ApiKeyAuthenticator],
+ * [io.translately.api.security.PatAuthenticator], and this one. JAX-RS
+ * ordering between filters at the same priority is not deterministic, so
+ * every authenticator treats `SecurityScopes` as additive — whichever runs
+ * last must not clobber what earlier ones granted.
+ *
+ * This filter previously called `grantAll(...)` unconditionally (which
+ * clears then adds). When the header was absent that wiped out any
+ * already-granted scopes (JWT's, API-key's, PAT's), causing intermittent
+ * 403 `INSUFFICIENT_SCOPE` on endpoints that should have passed — see
+ * issue #151 for the original regression. The same union invariant now
+ * protects the #149 API-key + PAT authenticators from the same trap.
+ * The filter no-ops when the header is absent.
  */
 @Provider
 @Priority(Priorities.AUTHENTICATION)
