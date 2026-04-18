@@ -35,6 +35,8 @@ quarkus-app/
 *.pem
 *.key
 secrets/
+# Committed DEV/TEST JWT keypair (explicitly non-secret; see jwt-dev/README.md)
+!backend/app/src/main/resources/jwt-dev/*.pem
 
 # Per-user Claude harness settings (keep `.claude/commands/`, skip local settings)
 .claude/settings.local.json
