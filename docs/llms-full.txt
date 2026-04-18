@@ -2203,7 +2203,7 @@ Both are minted from the Translately REST API (UI lands later in Phase 1). Secre
 
 Introduced by: [T110](https://github.com/Pratiyush/translately/issues/28) · Ships in `v0.1.0`.
 
-Related: [API auth endpoints](../api/auth/), [scopes](../api/scopes/), [error codes](../api/errors/).
+Related: [API auth endpoints](../api/auth.md), [scopes](../api/scopes.md), [error codes](../api/errors.md).
 
 ## Token format
 
@@ -2370,13 +2370,13 @@ This page covers **issuance**. The authenticator filter that accepts `Authorizat
 | `200` | — | Listing returned |
 | `204` | — | Revoke succeeded (or was already revoked) |
 | `400` | `VALIDATION_FAILED` | Missing name, empty scopes, past expiry |
-| `400` | `UNKNOWN_SCOPE` | A requested scope token isn't in [Scope](../api/scopes/) |
+| `400` | `UNKNOWN_SCOPE` | A requested scope token isn't in [Scope](../api/scopes.md) |
 | `401` | `UNAUTHENTICATED` | No JWT on the request |
 | `403` | `SCOPE_ESCALATION` | Requested a scope the caller doesn't hold |
 | `403` | `INSUFFICIENT_SCOPE` | Caller lacks `api-keys.read` / `api-keys.write` on an API-key endpoint |
 | `404` | `NOT_FOUND` | Project / PAT / API key not found (or not owned by caller) |
 
-See the [full catalogue](../api/errors/) for response envelopes.
+See the [full catalogue](../api/errors.md) for response envelopes.
 
 ## Changelog
 
