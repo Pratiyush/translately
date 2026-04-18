@@ -96,6 +96,10 @@ class TenantRequestFilterIT {
     // `projects/...`) so it never collides with the real project / member /
     // org resources in `:backend:api`; the TenantRequestFilter regex only
     // looks at the `organizations/{id}` prefix, so any leaf path works.
+    //
+    // These are test-only JAX-RS resources. OpenAPI scanning is scoped to
+    // `io.translately.api` in `application.yml`, so they never contribute to
+    // the committed `docs/api/openapi.json`.
 
     @Path("/test/tenant")
     @ApplicationScoped

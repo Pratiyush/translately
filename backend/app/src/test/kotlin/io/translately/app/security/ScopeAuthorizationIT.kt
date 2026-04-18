@@ -147,6 +147,10 @@ class ScopeAuthorizationIT {
     }
 
     // ---- test resources --------------------------------------------------
+    //
+    // These are test-only JAX-RS resources. OpenAPI scanning is scoped to
+    // `io.translately.api` in `application.yml`, so they never contribute
+    // to the committed `docs/api/openapi.json`.
 
     @Path("/test/scopes")
     @ApplicationScoped

@@ -84,11 +84,6 @@
           }
         }
       },
-      "Instant" : {
-        "type" : "string",
-        "format" : "date-time",
-        "examples" : [ "2022-03-10T16:15:50Z" ]
-      },
       "LoginRequest" : {
         "type" : "object",
         "properties" : {
@@ -113,11 +108,9 @@
             }
           },
           "expiresAt" : {
-            "anyOf" : [ {
-              "$ref" : "#/components/schemas/Instant"
-            }, {
-              "type" : "null"
-            } ]
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "examples" : [ "2022-03-10T16:15:50Z" ]
           }
         }
       },
@@ -134,11 +127,9 @@
             }
           },
           "expiresAt" : {
-            "anyOf" : [ {
-              "$ref" : "#/components/schemas/Instant"
-            }, {
-              "type" : "null"
-            } ]
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "examples" : [ "2022-03-10T16:15:50Z" ]
           }
         }
       },
