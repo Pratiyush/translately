@@ -16,6 +16,8 @@ RUN microdnf install -y findutils \
 
 COPY settings.gradle.kts build.gradle.kts gradle.properties* ./
 COPY gradle ./gradle
+COPY gradlew ./
+COPY buildSrc ./buildSrc
 COPY backend ./backend
 
 # Use Gradle wrapper committed to the repo (added in the Gradle skeleton PR).
