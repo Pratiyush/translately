@@ -192,52 +192,599 @@ Architecture Decision Records live under [`decisions/`](decisions/). Every non-t
 
 # Authentication architecture
 
-> **Status:** placeholder. Filled in by [T104-docs](https://github.com/Pratiyush/translately/issues/131) under Phase 1 doc back-fill.
+This page documents how Translately authenticates callers — the JWT format, refresh-token rotation, API-key and PAT validation, and the module boundaries that keep these pieces cleanly separable.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T104](https://github.com/Pratiyush/translately/issues/131) (`JwtIssuer` + `JwtAuthentication`), [T105](https://github.com/Pratiyush/translately/issues/132) (`PasswordHasher` + `TokenGenerator`), T110 (API keys + PATs).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related docs: [data-model](data-model.md), [authorization](authorization.md), [multi-tenancy](multi-tenancy.md).
+
+## Credential types
+
+| Credential | Issuer | Verifier | Identifies | Used by |
+|---|---|---|---|---|
+| **Access JWT** | `JwtIssuer` | Smallrye JWT | a user | browser session, webapp, short-lived scripts |
+| **Refresh JWT** | `JwtIssuer` | `RefreshTokenParser` | a user's session | `/api/v1/auth/refresh` only |
+| **API key** | T110 (org-level) | `ApiKeyAuthenticator` | a project | server-to-server, CI, CLI |
+| **Personal Access Token (PAT)** | T110 (user-level) | `PatAuthenticator` | a user | long-lived personal scripts |
+| **OIDC token** | Keycloak (Phase 7) | Quarkus OIDC | a user | enterprise SSO |
+| **LDAP bind** | Elytron (Phase 7) | Quarkus Elytron LDAP | a user | on-prem directory auth |
+
+Exactly one authenticator runs per request. The filter chain tries them in order (JWT → API key → PAT → OIDC) and stops on the first that matches; a request arriving with both an `Authorization: Bearer <jwt>` header and an API key in a query param is rejected rather than interpreted either way.
+
+## JWT format
+
+Translately uses **Smallrye JWT** with RSA-256 signing. The key pair is configured via `translately.jwt.sign-key.private` and `translately.jwt.verify-key.public` (the Quarkus defaults); operators rotate by deploying a new key pair and keeping the old public key in the verifier for one refresh-TTL window.
+
+### Access token
+
+| Claim | Type | Meaning |
+|---|---|---|
+| `iss` | string | `translately.jwt.issuer`, default `translately` |
+| `aud` | string | `translately.jwt.audience`, default `translately-webapp` |
+| `sub` | string | User `external_id` (ULID) |
+| `upn` | string | User email (the User Principal Name) |
+| `scope` | string | Space-separated scope tokens — same grammar as `Scope.serialize` |
+| `groups` | string[] | Same scope tokens as a JSON array — Smallrye uses this for `@RolesAllowed` interop |
+| `orgs` | object[] | `[{id, slug, role}, …]` — one entry per org the user belongs to |
+| `typ` | string | `"access"` |
+| `iat` / `exp` | int | Issued-at and expiry (epoch seconds). Default TTL: **15 minutes** (`translately.jwt.access-ttl = PT15M`) |
+
+Tokens are compact-serialized; the `orgs` claim means the webapp rarely needs a second round-trip to resolve membership when deciding what to render.
+
+### Refresh token
+
+Minimal claim set — everything the server needs to validate one request and then rotate:
+
+| Claim | Type | Meaning |
+|---|---|---|
+| `iss`, `aud`, `sub` | string | Same as access |
+| `jti` | string | Cryptographically-random ULID-like token (24-byte base32); single-use |
+| `typ` | string | `"refresh"` |
+| `iat` / `exp` | int | Default TTL: **30 days** (`translately.jwt.refresh-ttl = P30D`) |
+
+### Rotation and replay protection (T103)
+
+`/api/v1/auth/refresh` performs an atomic rotation:
+
+1. Verify the inbound refresh JWT (signature, issuer, audience, `typ=refresh`, `exp`).
+2. Look up `jti` in the `refresh_tokens` ledger (table introduced by T103's `V2` migration).
+3. If the row is already marked `consumed_at IS NOT NULL` → **replay attempt.** Return `REFRESH_TOKEN_REUSED` and invalidate every refresh-token row linked to the same user (forces all sessions to re-login). This is the "what if an attacker has cloned my refresh token?" answer.
+4. Otherwise: stamp `consumed_at = NOW()`, mint a fresh access+refresh pair, record the new `jti`.
+
+The ledger is the only DB read on the hot path; it carries a `(jti UNIQUE, consumed_at, user_id, expires_at)` shape.
+
+### Bearer-credential split
+
+`JwtSecurityScopesFilter` deliberately rejects refresh tokens on regular endpoints — refresh tokens are only valid at the `/api/v1/auth/refresh` controller. This prevents a stolen refresh token from being used to read data directly; it also means the refresh TTL can be longer than the access TTL without compromising the API surface.
+
+## API key + PAT authentication
+
+Both credential types follow the same shape and Argon2id-hash their secrets:
+
+- **Prefix:** 16 lowercase base32 chars, the only part ever shown twice (once at issue, once in the API-key listing UI). Humans can recognise their keys at a glance; the backend uses the prefix to find the row without scanning.
+- **Secret:** 32 random bytes, base32-encoded, **shown exactly once** at mint time. The DB stores `Argon2id(secret)` only.
+
+On request:
+
+1. Parse `Authorization: Bearer <prefix>_<secret>` (or an `x-api-key` header for convenience).
+2. `SELECT … FROM api_keys WHERE prefix = ?` — unique index, O(1) lookup.
+3. Compare `Argon2.verify(secret, row.secret_hash)`. If the hash parameters lag the current defaults, the service layer may re-hash on success (progressive hardening).
+4. If `revoked_at IS NOT NULL` or `expires_at < now()` → 401. Otherwise record `last_used_at = NOW()` (best-effort async) and continue.
+
+Argon2id parameters (see [ADR 0001](decisions/0001-argon2id-password-hashing.md)): `iterations=3`, `memory=64 MiB`, `parallelism=4`. Same settings for user passwords.
+
+PATs identify a **user**, so their scopes are intersected with the user's effective scope set at the time the request runs. An API key identifies a **project** and can carry any scopes the minting admin is allowed to delegate.
+
+## Module layout
+
+```
+:backend:security
+  jwt/       JwtIssuer, JwtClaims, JwtTokens            ← T104 issue #131
+  password/  PasswordHasher, TokenGenerator             ← T105 issue #132
+  crypto/    CryptoService (envelope)                   ← T112 issue #136
+  tenant/    TenantContext                              ← T111 issue #135
+  rbac/      OrgRole, OrgRoleScopes, ScopeResolver      ← T109 issue #134
+  Scope.kt, SecurityScopes.kt, RequiresScope.kt         ← T108 issue #133
+
+:backend:api
+  tenant/    TenantRequestFilter                        ← T111 issue #135
+  security/  JwtSecurityScopesFilter
+             ScopeAuthorizationFilter                   ← T108
+             InsufficientScopeException + mapper
+```
+
+## Test coverage
+
+- `JwtIssuerIT` / `JwtAuthenticationIT` (in `:backend:app`) — round-trip signed JWTs against a running Quarkus instance; assert every claim field and every rejection path.
+- `PasswordHasherTest` (`:backend:security`) — verifies Argon2id parameter constants, round-trip hash+verify, wrong-password rejection, and malformed-hash graceful failure.
+- `CryptoServiceTest` — envelope layout, tamper detection, KEK-size validation.
+- `ScopeResolverTest` / `OrgRoleScopesTest` — role-to-scope mapping invariants.
+
+Integration tests run under `./gradlew :backend:app:test`; unit tests under `./gradlew :backend:security:test` and don't require Docker.
 
 
 <!-- ===== FILE: architecture/authorization.md ===== -->
 
-# Authorization — scopes & roles
+# Authorization — scopes and roles
 
-> **Status:** placeholder. Filled in by [T108-docs / T109-docs](https://github.com/Pratiyush/translately/issues/134) under Phase 1 doc back-fill.
+Translately uses a **scope-based authorization model** layered on top of coarse **organization roles**. Scopes are the atomic permission token; roles are the human-facing shorthand that maps to a curated scope set.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T108](https://github.com/Pratiyush/translately/issues/133) (scope enum + `@RequiresScope` + JAX-RS filter), [T109](https://github.com/Pratiyush/translately/issues/134) (role → scope resolver).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related docs: [auth architecture](auth.md), [API scopes reference](../api/scopes.md).
+
+## Scope naming
+
+Every scope is a dotted, lowercase token: `<domain>.<action>` where `<action>` ∈ `{read, write}` plus the special `ai.suggest`.
+
+- `write` **implies** `read` at the resolver level — a caller with `keys.write` passes a `keys.read` check.
+- **Never rename an existing token.** API keys, PATs, and customer-issued credentials embed these strings in storage. Add a new scope and deprecate the old one; remove one minor version later.
+
+The full catalogue lives in [`io.translately.security.Scope`](../../backend/security/src/main/kotlin/io/translately/security/Scope.kt) and is surfaced in the [API scopes reference](../api/scopes.md).
+
+## Role → scope mapping
+
+The three built-in organization roles are deliberately coarse. Finer-grained rules (per-project roles, API-key scope intersection, PAT restriction) compose on top.
+
+| Role | Read scopes | Write scopes | Notes |
+|---|---|---|---|
+| **OWNER** | every `*.read` | every `*.write` + `ai.suggest` + `audit.read` | Founder / destructive rights. New scopes default to OWNER so we never forget to grant them. |
+| **ADMIN** | every `*.read` | OWNER minus `project-settings.write`, `ai-config.write`, `api-keys.write` | Can manage members and projects but cannot rename/archive projects, rotate BYOK keys, or mint org API keys. Retains `audit.read` so admins cannot hide their own tracks by rotating their credentials. |
+| **MEMBER** | every `*.read` | `keys.write`, `translations.write`, `imports.write`, `ai.suggest` | "Day-job" authoring set. Cannot administer the org or configure project-wide toggles. |
+
+Invariant: `OWNER ⊃ ADMIN ⊃ MEMBER`. Asserted by `OrgRoleScopesTest` — must be preserved as scopes are added.
+
+### Why this specific ADMIN exclusion list?
+
+Three levers stay with OWNER:
+
+1. **`project-settings.write`** — rename / archive / delete a project. These are org-reshape actions.
+2. **`ai-config.write`** — attach or rotate a BYOK AI provider. Owners control billing-adjacent decisions because BYOK keys have a cost.
+3. **`api-keys.write`** — mint or revoke org-level API keys. Kept with OWNER so an ADMIN can't mint themselves a long-lived credential and drop it outside the audit horizon.
+
+ADMIN explicitly keeps `audit.read` — separation so admins can investigate incidents without being able to cover up their own traces.
+
+## Runtime resolution
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Tenant as TenantRequestFilter
+  participant Auth as JwtSecurityScopesFilter
+  participant Authz as ScopeAuthorizationFilter
+  participant Resource as @RequiresScope resource
+
+  Client->>Tenant: request (+ Authorization header)
+  Tenant->>Auth: request (TenantContext bound)
+  Auth->>Auth: verify JWT / API key / PAT
+  Auth->>Auth: ScopeResolver.resolveFromMemberships(...)
+  Auth->>Authz: SecurityScopes = {KEYS_READ, KEYS_WRITE, ...}
+  Authz->>Resource: required = method's @RequiresScope
+  alt scopes cover required
+    Authz->>Resource: invoke
+    Resource-->>Client: 200
+  else insufficient
+    Authz-->>Client: 403 INSUFFICIENT_SCOPE
+  end
+```
+
+The filters in code:
+
+- [`TenantRequestFilter`](../../backend/api/src/main/kotlin/io/translately/api/tenant/TenantRequestFilter.kt) — runs first. Extracts the tenant identifier from the URL path.
+- `JwtSecurityScopesFilter` — runs at `Priorities.AUTHENTICATION`. Verifies the credential, hydrates `SecurityScopes` with the resolved scope set.
+- [`ScopeAuthorizationFilter`](../../backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) — runs at `Priorities.AUTHORIZATION`. Reads `@RequiresScope` off the resource method; fails fast with `INSUFFICIENT_SCOPE` if the request doesn't cover it.
+
+## `@RequiresScope` usage
+
+```kotlin
+@Path("/api/v1/organizations/{orgId}/projects")
+class ProjectResource {
+
+    @GET
+    @RequiresScope(Scope.PROJECTS_READ)
+    fun list(@PathParam("orgId") orgId: String): List<ProjectSummary> = ...
+
+    @POST
+    @RequiresScope(Scope.PROJECTS_WRITE, Scope.PROJECT_SETTINGS_WRITE)
+    fun create(body: CreateProjectRequest): ProjectDto = ...
+}
+```
+
+Multiple scopes in `@RequiresScope` are an **AND** — the caller must hold all of them. Document the `OR` case explicitly in the resource if you need it; don't overload the annotation.
+
+`@RequiresScope` is only valid on JAX-RS resource methods (or the class, in which case it applies to every method). See the [`RequiresScope.kt`](../../backend/security/src/main/kotlin/io/translately/security/RequiresScope.kt) annotation and [`ScopeAuthorizationFilter.kt`](../../backend/api/src/main/kotlin/io/translately/api/security/ScopeAuthorizationFilter.kt) enforcer.
+
+## Error contract
+
+On failure the filter throws `InsufficientScopeException`, caught by `InsufficientScopeExceptionMapper` and serialized as:
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_SCOPE",
+    "message": "This endpoint requires scope(s): keys.write",
+    "details": { "required": ["keys.write"], "held": ["keys.read"] }
+  }
+}
+```
+
+HTTP status: `403`. Stable across minor versions — CLI, SDK, and webapp all match on `error.code`.
+
+## Where roles meet scopes
+
+`ScopeResolver.canResolveFor(userId, memberships, orgId)`:
+
+- `orgId = null` — "cross-org view" (e.g. `GET /organizations` to list orgs you can see). Returns the union of every role across every org.
+- `orgId ≠ null` — filter memberships by that org, then union. A user with no membership in the org receives the empty set → every downstream `@RequiresScope` fails closed.
+
+The resolver is intentionally stateless and pure — no DB, no cache. The service layer loads memberships once (at JWT mint or per-request authentication) and passes them in. Cache invalidation is therefore not a problem this layer solves.
 
 
 <!-- ===== FILE: architecture/crypto.md ===== -->
 
 # Crypto — envelope encryption
 
-> **Status:** placeholder. Filled in by [T112-docs](https://github.com/Pratiyush/translately/issues/136) under Phase 1 doc back-fill.
+Translately encrypts at-rest secrets using AES-256-GCM envelope encryption. The only secret outside the database is the **Key Encryption Key (KEK)**, injected by the operator at boot via an environment variable. Every secret in the database gets its own **Data Encryption Key (DEK)**, and the DEK itself is stored encrypted alongside the ciphertext.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T112](https://github.com/Pratiyush/translately/issues/136).
+Primary consumer: Phase 4 — per-project BYOK AI API keys (`projects.ai_api_key_encrypted`).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related: [data-model](data-model.md), [hardening](../self-hosting/hardening.md).
+
+## Why envelope encryption?
+
+A single "encrypt with the master key" scheme forces every row to share a key. Rotating that key requires re-encrypting every row (expensive) and one compromised ciphertext weakens the whole dataset.
+
+Envelope encryption fixes both:
+
+- Each row gets its own DEK → a compromised ciphertext leaks exactly that one secret.
+- Rotating the KEK means re-wrapping each DEK, not re-encrypting each payload — O(envelopes) with constant-size work per envelope.
+- The KEK never leaves the JVM's memory; it's not in the database.
+
+## Envelope layout
+
+Implemented in [`io.translately.security.crypto.CryptoService`](../../backend/security/src/main/kotlin/io/translately/security/crypto/CryptoService.kt). Every envelope is a single `bytea`:
+
+| Offset | Bytes | Meaning |
+|---|---|---|
+| 0 | 1 | `version` — currently `0x01` |
+| 1 | 12 | IV for DEK encryption (GCM) |
+| 13 | 48 | `AES-GCM(KEK, IV_dek, DEK)` — 32-byte DEK + 16-byte auth tag |
+| 61 | 12 | IV for data encryption (GCM) |
+| 73 | N + 16 | `AES-GCM(DEK, IV_data, plaintext)` — N payload bytes + 16-byte auth tag |
+
+Minimum envelope length (empty plaintext): **89 bytes**. Constants are exposed via `CryptoService.Companion` for test assertions.
+
+## Guarantees
+
+- **Confidentiality** — AES-256-GCM at both layers.
+- **Integrity + authentication** — the 128-bit GCM tag catches any single-bit flip, reorder, or truncation. `decrypt` throws `AEADBadTagException` on tampering.
+- **Non-determinism** — two calls to `encrypt(plaintext)` with the same input produce different envelopes (fresh DEK and IVs each time). Observers of the `bytea` column cannot deduplicate or compare ciphertexts.
+- **Forward version compatibility** — the leading version byte lets us migrate to a different scheme later (key-wrapped, post-quantum, HSM-backed) without breaking old rows. `decrypt` rejects unsupported versions.
+
+## Operator setup
+
+One env var at boot:
+
+```bash
+TRANSLATELY_CRYPTO_MASTER_KEY=<base64 of 32 random bytes>
+```
+
+Generate with:
+
+```bash
+openssl rand -base64 32
+```
+
+A wrong-size key fails fast in the CDI producer (`CryptoServiceProducer`) with a clear error — the app refuses to start rather than silently picking up a truncated key.
+
+**Rotate** by:
+
+1. Generate a new KEK.
+2. Deploy with both keys available (`TRANSLATELY_CRYPTO_MASTER_KEY_OLD` + `TRANSLATELY_CRYPTO_MASTER_KEY`) — the migration CLI decrypts with old, re-encrypts with new.
+3. After the migration finishes, remove `_OLD` and restart.
+
+The rotation tool itself ships alongside Phase 4 once real envelopes exist; Phase 1 only lays the primitive down.
+
+## Usage from service code
+
+```kotlin
+class ProjectAiService(
+    private val crypto: CryptoService,
+    private val projects: ProjectRepository,
+) {
+    fun storeKey(projectId: Long, apiKey: String) {
+        val envelope = crypto.encrypt(apiKey)
+        projects.updateAiKeyEncrypted(projectId, envelope)
+    }
+
+    fun loadKey(projectId: Long): String? {
+        val envelope = projects.findAiKeyEncrypted(projectId) ?: return null
+        return crypto.decryptString(envelope)
+    }
+}
+```
+
+The service is the only layer allowed to hold plaintext secrets in memory. JAX-RS resources, controllers, and every module above `:backend:service` receive an opaque `bytea` or a domain object that never exposes plaintext.
+
+## Defensive details
+
+- The in-memory DEK buffer is zero-filled immediately after use. The JVM may have copied it during `ByteBuffer.put`, but we clear the reference we own. This is belt-and-braces; GCM already makes ciphertext-only attacks impossible.
+- `CryptoService` is **stateless** and safe for concurrent use. The underlying `Cipher` is per-call (`Cipher.getInstance("AES/GCM/NoPadding")`); JCE cipher instances are not thread-safe and must not be cached across calls.
+- The KEK is held as a `SecretKeySpec` built from a defensive `kekBytes.copyOf()` so the operator's caller can zero its own buffer.
+
+## Testing
+
+`CryptoServiceTest` in `:backend:security` asserts:
+
+- Round-trip for empty, short, and large payloads.
+- Non-determinism (two encrypts of the same plaintext differ).
+- Tamper detection (flip any byte → `AEADBadTagException`).
+- Wrong-KEK rejection.
+- Version byte rejection for unknown versions.
+- Invalid KEK length → `IllegalArgumentException` at construction.
+
+No Quarkus or Docker is required — these are pure JCE unit tests.
+
+## Not in scope
+
+- **KMS integration** (AWS KMS, GCP KMS, Vault Transit) — Phase 7 will add a `KekProvider` port so self-hosters who have a KMS can delegate key material. The envelope format stays the same.
+- **Field-level deterministic encryption** — we don't encrypt anything we'd need to index, so a non-deterministic scheme is strictly better.
+- **Transport encryption** — handled at the reverse proxy. See [hardening](../self-hosting/hardening.md).
 
 
 <!-- ===== FILE: architecture/data-model.md ===== -->
 
-# Data model — ER diagram
+# Data model
 
-> **Status:** placeholder. Filled in by [T101-docs](https://github.com/Pratiyush/translately/issues/129) under Phase 1 doc back-fill.
+Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under [`backend/data/src/main/resources/db/migration/`](../../backend/data/src/main/resources/db/migration/). This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T101](https://github.com/Pratiyush/translately/issues/129) · First migration: `V1__auth_and_orgs.sql`.
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+## Identifier strategy
+
+Every durable entity carries **two** identifiers:
+
+- `id BIGSERIAL PRIMARY KEY` — monotonic, internal only. Foreign keys reference this.
+- `external_id CHAR(26) NOT NULL UNIQUE` — [ULID](https://github.com/ulid/spec), Crockford base32, lexicographically time-sortable. This is the only identifier that leaves the database: every URL, JSON payload, webhook event, and API-key prefix uses `external_id`.
+
+**Why both.** Using a bigserial for FKs keeps indexes tiny and joins fast; exposing ULIDs on the wire avoids leaking row counts, dodges integer-enumeration attacks, and lets callers sort by ID as a coarse creation-time sort.
+
+Generation lives in [`io.translately.data.Ulid`](../../backend/data/src/main/kotlin/io/translately/data/Ulid.kt); a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
+
+## Conventions
+
+| Convention | Rule |
+|---|---|
+| Table names | plural snake_case (`users`, `project_languages`) |
+| Timestamps | `created_at`, `updated_at`, optional `deleted_at` — all `TIMESTAMPTZ NOT NULL` (`deleted_at` nullable) |
+| Soft delete | only where retention matters (users, organizations, projects). Everything else hard-deletes on cascade |
+| FK naming | `fk_<child>_<parent>` |
+| Unique constraints | `uk_<table>_<cols>` |
+| Indexes | `idx_<table>_<cols>` |
+| Booleans | avoided; prefer nullable `TIMESTAMPTZ` so we keep the "when" for free (`email_verified_at` vs. `email_verified`) |
+| Enums | `VARCHAR(n)` + `CHECK` constraint — keeps migrations cheap and readable in psql |
+
+## V1 entity-relationship diagram
+
+```mermaid
+erDiagram
+  USERS ||--o{ ORGANIZATION_MEMBERS : "is_member_via"
+  USERS ||--o{ PERSONAL_ACCESS_TOKENS : "owns"
+  ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERS : "has"
+  ORGANIZATIONS ||--o{ PROJECTS : "owns"
+  PROJECTS ||--o{ PROJECT_LANGUAGES : "supports"
+  PROJECTS ||--o{ API_KEYS : "issues"
+
+  USERS {
+    bigserial id PK
+    char external_id UK "26 — ULID"
+    varchar email UK "254"
+    timestamptz email_verified_at
+    varchar password_hash "Argon2id — nullable for SSO"
+    varchar full_name "128"
+    varchar locale "default en"
+    varchar timezone "default UTC"
+    timestamptz deleted_at
+  }
+
+  ORGANIZATIONS {
+    bigserial id PK
+    char external_id UK "26 — ULID"
+    varchar slug UK "64 — kebab-case"
+    varchar name "128"
+    timestamptz deleted_at
+  }
+
+  ORGANIZATION_MEMBERS {
+    bigserial id PK
+    char external_id UK "26 — ULID"
+    bigint organization_id FK
+    bigint user_id FK
+    varchar role "OWNER ADMIN MEMBER"
+    timestamptz invited_at
+    timestamptz joined_at
+  }
+
+  PROJECTS {
+    bigserial id PK
+    char external_id UK "26 — ULID"
+    bigint organization_id FK
+    varchar slug "unique per org"
+    varchar name "128"
+    varchar description "1024"
+    varchar base_language_tag "default en"
+    varchar ai_provider "ANTHROPIC OPENAI OPENAI_COMPATIBLE"
+    varchar ai_model
+    varchar ai_base_url
+    bytea ai_api_key_encrypted "envelope-encrypted T112"
+    numeric ai_budget_cap_usd_monthly
+    timestamptz deleted_at
+  }
+
+  PROJECT_LANGUAGES {
+    bigserial id PK
+    char external_id UK "26 — ULID"
+    bigint project_id FK
+    varchar language_tag "BCP-47"
+    varchar name "display name"
+    varchar direction "LTR or RTL"
+  }
+
+  API_KEYS {
+    bigserial id PK
+    char external_id UK "26 — ULID"
+    bigint project_id FK
+    varchar prefix UK "16 — shown once"
+    varchar secret_hash "Argon2id"
+    varchar name "128"
+    varchar scopes "space-separated tokens"
+    timestamptz expires_at
+    timestamptz last_used_at
+    timestamptz revoked_at
+  }
+
+  PERSONAL_ACCESS_TOKENS {
+    bigserial id PK
+    char external_id UK "26 — ULID"
+    bigint user_id FK
+    varchar prefix UK "16"
+    varchar secret_hash
+    varchar name
+    varchar scopes
+    timestamptz expires_at
+    timestamptz last_used_at
+    timestamptz revoked_at
+  }
+```
+
+## Notable per-entity decisions
+
+### `users`
+
+- `password_hash` is nullable — SSO-only users (Phase 7) do not have a local password. Login attempts with email + password against a null hash always fail on the same code path as "wrong password", so there is no enumeration signal.
+- `email_verified_at` gates anything that isn't signup / verify / login / password-reset. Resource filters check this when T103's email-verify ships.
+- `locale` and `timezone` are stored so server-rendered emails (Qute templates) and audit exports can respect the user's preferences without another round-trip.
+
+### `organizations`
+
+- `slug` is unique globally. A cheap sanity check — URLs are shorter and sharable when the slug is unique.
+- No explicit billing fields: the platform is open-source self-host; SaaS operators fork and add billing tables on top.
+
+### `organization_members`
+
+- `(organization_id, user_id)` is UNIQUE — a user has exactly one role per org at any time.
+- `invited_at` / `joined_at` split lets the service layer represent a pending invite without a separate table. A row with `joined_at IS NULL` is an outstanding invite.
+- Roles are enforced by `CHECK (role IN ('OWNER','ADMIN','MEMBER'))` so bad enum values can't land even from a rogue INSERT.
+
+### `projects`
+
+- The five `ai_*` columns are all nullable — a project with zero AI columns set is perfectly functional; Suggest simply isn't offered in the UI. This is the schema shape that enforces CLAUDE.md's BYOK-optional rule.
+- `ai_api_key_encrypted BYTEA` stores the envelope produced by [`CryptoService`](crypto.md) — never the plaintext API key.
+- `(organization_id, slug)` is UNIQUE — slugs can collide across orgs, just not inside one.
+
+### `api_keys` and `personal_access_tokens`
+
+- Secrets are never stored. The 16-character `prefix` is shown once to the caller so we can disambiguate in the UI; the hash is Argon2id (see [auth architecture](auth.md)).
+- `scopes` is a denormalized space-separated token list. A key with no scopes (`''`) can still be authenticated but will fail every scope-authorization check — a defensive default.
+- `expires_at`, `last_used_at`, `revoked_at` together give the admin UI everything it needs to surface key health and mint / rotate confidently.
+
+## Soft-delete policy
+
+Only `users`, `organizations`, and `projects` soft-delete. Rationale: retention regulations (GDPR deletion requests, SOC2 audit history) push in opposite directions; we keep the row long enough that an undo is cheap and the audit trail intact, then periodically hard-delete.
+
+Anything referenced via `FOREIGN KEY … ON DELETE CASCADE` hard-deletes automatically — that's the default for tokens, memberships, project-languages, api-keys, and PATs. A soft-deleted `users` row does *not* cascade: the service layer decides when to fully purge.
+
+## Future migrations
+
+Phase 2 (`V2__keys_translations_icu.sql`) introduces `keys`, `translations`, `namespaces`, `tags`, `comments`, `activities`. Phase 3 adds `import_jobs` / `export_jobs`. Phase 4 adds translation memory, budgets, per-provider audit rows. The ID and naming conventions above are inviolate across all of them.
+
+See [`.kiro/steering/architecture.md`](../../.kiro/steering/architecture.md) for the operational guardrails (forward-only migrations, no destructive changes without a deprecation window).
+
+
+<!-- ===== FILE: architecture/decisions/0001-argon2id-password-hashing.md ===== -->
+
+# 0001 — Argon2id for password and token hashing
+
+- **Status:** Accepted
+- **Date:** 2026-04-18
+- **Deciders:** Pratiyush
+- **Context link:** [T105 — Argon2id password hasher](https://github.com/Pratiyush/translately/issues/132)
+
+## Context and problem statement
+
+Translately authenticates users by email + password (T103) and issues two classes of server-verified token: API keys (T110, per-project) and personal access tokens (T110, per-user). All three carry a secret that the server must verify on every request, and none of them may be recoverable from the database if the DB is dumped.
+
+We need a password-hashing scheme that is (a) slow enough to frustrate offline brute force on a stolen `secret_hash` column, (b) tunable over time as CPU/GPU cost drops, (c) side-channel resistant, (d) available in a mature JVM library with an acceptable license, and (e) not so slow that the `verify` path becomes a request-latency problem.
+
+## Decision drivers
+
+- **MIT-compatible licensing only.** The whole project is MIT (CLAUDE.md rule #4); dependencies must match.
+- **Java 21 LTS runtime** (Quarkus). No native-image gotchas.
+- **OWASP current guidance** — the scheme must be a recommendation in the current Password Storage Cheat Sheet, not a legacy workaround.
+- **Parameter upgradeability.** The stored hash must embed its own parameters so we can harden over time without a schema migration.
+- **Latency budget.** Targeted verify path: **30–60 ms** on modern server CPU. Above ~150 ms and the login endpoint becomes a DoS amplifier; below ~10 ms and the cost curve for an attacker is too gentle.
+
+## Considered options
+
+1. **bcrypt** — widely deployed, mature Java libraries (Spring Security, Bouncy Castle). Parameters embedded. Downside: max password length is 72 bytes (silently truncates); no memory-hardness, so GPU/ASIC attacks are cheap.
+2. **scrypt** — memory-hard, predates Argon2. Works, but no longer the OWASP recommendation; fewer maintained JVM libraries; parameter tuning is finicky.
+3. **PBKDF2** — FIPS-approved, simplest, broadly available. Not memory-hard; even high iteration counts do not stop a well-resourced attacker with GPUs. OWASP lists it as acceptable only when Argon2 / scrypt are unavailable.
+4. **Argon2id** — winner of the [2015 Password Hashing Competition](https://password-hashing.net/); OWASP's current top recommendation; memory-hard; hybrid of data-independent (side-channel resistant) and data-dependent (brute-force resistant) variants.
+
+## Decision outcome
+
+**Chosen option: Argon2id**, because it's the OWASP-recommended default, provides memory-hardness that bcrypt lacks, and has a mature MIT-licensed Java binding (`de.mkammerer:argon2-jvm`) backed by the reference C implementation.
+
+### Parameters
+
+Following the [OWASP "m=64 MiB, t=3, p=4"](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) Argon2id guideline:
+
+- **iterations (t):** 3
+- **memory (m):** 65 536 KiB (64 MiB)
+- **parallelism (p):** 4
+- **salt length:** 16 bytes (library default)
+- **output length:** 32 bytes (library default)
+
+These values give ~30–60 ms per hash on a modern server CPU — well inside our latency budget and well outside an attacker's comfort zone for offline brute force.
+
+### Storage
+
+The `argon2-jvm` output string is self-describing — it embeds algorithm, version, parameters, salt, and hash in a single compact form:
+
+```
+$argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
+```
+
+We store the full string in a single `VARCHAR(256)` column (`users.password_hash`, `api_keys.secret_hash`, `personal_access_tokens.secret_hash`). This means:
+
+- **Parameter upgrades require no schema migration.** Future hashes use new parameters; old hashes still verify because `verify` reads them from the encoded string.
+- **No separate salt column.** The salt rides in the encoded output.
+
+### Consequences
+
+- **Good** — state-of-the-art defence against stolen-DB brute force; side-channel resistance; single `VARCHAR` column; parameter upgrades without schema migrations; OWASP-current.
+- **Neutral** — Each hash allocates 64 MiB transiently. On a server sized for Quarkus this is fine; on a 512 MiB container it's worth configuring login concurrency limits.
+- **Bad** — `argon2-jvm` depends on a native library (`libargon2`) bundled as a JAR resource. Container images must not strip this. A pure-Java fallback (slower) exists and would be the first fallback if we ever needed to build a true statically-linked native image.
+
+### Implementation notes
+
+- Touched modules: `:backend:security` (`io.translately.security.password.PasswordHasher`).
+- Shared by: user login (T103), API key verification (T110), PAT verification (T110), password-reset and email-verification token hashing (T103).
+- Migration: none required — this is the first password hasher Translately ships.
+- Rollback: drop the `argon2-jvm` dependency and replace with bcrypt. Every encoded hash carries its algorithm prefix, so a `verify` could dispatch to bcrypt for `$2a$`-prefixed rows and Argon2 for `$argon2id$` rows during a rollout.
+
+### Progressive hardening
+
+`PasswordHasher.verify` can return `true` **and** signal "this hash used weaker parameters than our current default" to the caller. On a successful login we then re-hash with current parameters and write back — users with old hashes transparently upgrade over time. Implementation of the signal is deferred until we first raise the defaults.
+
+## Links
+
+- OWASP Password Storage Cheat Sheet: <https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html>
+- Argon2 RFC 9106: <https://datatracker.ietf.org/doc/html/rfc9106>
+- `argon2-jvm` library: <https://github.com/phxql/argon2-jvm> (MIT)
+- [Auth architecture](../auth.md)
+- [PasswordHasher source](../../../backend/security/src/main/kotlin/io/translately/security/password/PasswordHasher.kt)
 
 
 <!-- ===== FILE: architecture/decisions/README.md ===== -->
@@ -250,11 +797,9 @@ Format: [MADR 3.0](https://adr.github.io/madr/) (Markdown Any Decision Record). 
 
 ## Index
 
-*Filled in by back-fill PRs and every future PR that makes a non-trivial technical choice.*
-
 | # | Title | Status | Date |
 |---|---|---|---|
-| *none yet* | | | |
+| [0001](0001-argon2id-password-hashing.md) | Argon2id for password and token hashing | Accepted | 2026-04-18 |
 
 ## Numbering
 
@@ -324,39 +869,282 @@ What forced this decision? Describe the pressure: a requirement, a constraint, a
 
 # Module map
 
-> **Status:** placeholder. Filled in by [T101-docs](https://github.com/Pratiyush/translately/issues/129) under Phase 1 doc back-fill.
+Translately's backend is a single Gradle (Kotlin DSL) build with 13 modules under `:backend:*`. Each module is a narrow library; the single runnable artefact is `:backend:app`, which wires them into a Quarkus application.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Webapp and future CLI / SDK packages live outside the Gradle build in `webapp/`, `sdks/`, `cli/` and use their own tooling (pnpm, Vite, TypeScript).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+## Module graph
+
+```mermaid
+flowchart TD
+  app[":backend:app<br/>Quarkus runtime<br/>integration tests"]
+  api[":backend:api<br/>JAX-RS resources<br/>filters + mappers"]
+  service[":backend:service<br/>use-cases<br/>AuthService, OrgService, ..."]
+  data[":backend:data<br/>JPA entities<br/>Panache repos<br/>Flyway migrations"]
+  security[":backend:security<br/>Scope, RBAC<br/>JWT, password, crypto<br/>TenantContext"]
+  email[":backend:email<br/>Quarkus Mailer + Qute"]
+  jobs[":backend:jobs<br/>Quartz job defs"]
+  ai[":backend:ai<br/>AiTranslator port<br/>Claude / OpenAI adapters"]
+  mt[":backend:mt<br/>MachineTranslator port<br/>DeepL / Google / AWS"]
+  storage[":backend:storage<br/>S3 / MinIO adapter"]
+  webhooks[":backend:webhooks<br/>HMAC sender, retries"]
+  cdn[":backend:cdn<br/>content bundle builder"]
+  audit[":backend:audit<br/>append-only log"]
+
+  app --> api
+  app --> service
+  app --> data
+  app --> jobs
+  app --> ai
+  app --> mt
+  app --> storage
+  app --> email
+  app --> webhooks
+  app --> cdn
+  app --> audit
+
+  api --> service
+  api --> security
+
+  service --> data
+  service --> security
+  service --> email
+  service --> ai
+  service --> mt
+  service --> storage
+  service --> audit
+  service --> webhooks
+
+  data --> security
+
+  jobs --> service
+```
+
+*(Render via GitHub / Pages Mermaid support. A PNG export will land under `diagrams/` the first time someone edits this file in a content-rich PR.)*
+
+## Ownership and rules
+
+- **`:backend:security`** is a leaf library. It depends on no other `:backend:*` module. Keep it that way so every module — including `:data` — can use scopes, password hashing, crypto, and tenant context without circular dependencies. Enums that need to exist in both `:data` (as JPA entity state) and `:security` (as pure Kotlin) are duplicated — see `OrganizationRole` (data) vs `OrgRole` (security) with a test that asserts the name round-trip.
+- **`:backend:data`** owns Flyway migrations and Panache entities. No service, filter, resource, or controller code lives here. Entities are plain data — they may carry `@PrePersist` / `@PreUpdate` for timestamp housekeeping but no business logic.
+- **`:backend:service`** owns use-case orchestration. A service method is the transactional boundary (`@Transactional`) and is the only layer allowed to emit audit events or send email.
+- **`:backend:api`** translates HTTP to services and back. Filters here are: `TenantRequestFilter` → authenticators → `ScopeAuthorizationFilter`. Exception mappers map `AuthException` / `InsufficientScopeException` to the uniform `{error:{code,message,details?}}` envelope.
+- **`:backend:app`** is the only module with `quarkus-resteasy-reactive` at runtime scope. It wires CDI producers (`CryptoServiceProducer`, etc.), hosts the Quarkus test profile, and runs integration tests against Testcontainers Postgres + Mailpit.
+
+## Why this shape
+
+- **Boot time matters.** Smaller JARs → faster dev loop → faster CI. The hard rule that `:security` has no heavy deps lets unit tests in that module avoid starting Quarkus at all.
+- **Testability.** Each leaf module is trivially unit-testable with MockK. Integration tests (`*IT`) live only in `:backend:app` and bring the full Quarkus + Testcontainers environment up; there is no "almost full" middle tier.
+- **Clean replacement.** Adapters in `:ai`, `:mt`, `:storage`, `:webhooks`, `:cdn` implement a port interface defined in their own package. Adding a new provider is a new class in the same module — no other modules change.
+
+See [`.kiro/steering/architecture.md`](../../.kiro/steering/architecture.md) for the authoritative steering rule.
 
 
 <!-- ===== FILE: architecture/multi-tenancy.md ===== -->
 
 # Multi-tenancy
 
-> **Status:** placeholder. Filled in by [T111-docs](https://github.com/Pratiyush/translately/issues/135) under Phase 1 doc back-fill.
+Translately is a single-process, multi-tenant server. Every business entity (project, key, translation, API key, screenshot, webhook) hangs off an organization; a request either scopes to exactly one organization or it's a cross-org endpoint (login, signup, organization listing, health, metrics).
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T111](https://github.com/Pratiyush/translately/issues/135) (TenantContext + TenantRequestFilter).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related docs: [auth architecture](auth.md), [authorization](authorization.md), [request-lifecycle](request-lifecycle.md).
+
+## Tenant identifier
+
+The URL path is the single source of truth:
+
+```
+/api/v1/organizations/{orgIdOrSlug}/projects/{projectId}/keys
+                      └── tenant identifier ─┘
+```
+
+`{orgIdOrSlug}` is **either**:
+
+- a **ULID** (26 Crockford base32 chars), or
+- a **slug** (lowercase kebab-case, ≤64 chars, starts and ends with `[a-z0-9]`).
+
+The syntax check is done in the filter; resolution to an internal `organizations.id BIGINT` happens in service code once the request reaches a DB call.
+
+### Why both?
+
+- **Slug** is friendly for URLs users share (`/organizations/acme/…`).
+- **ULID** is the stable external ID that won't change on rename.
+
+Both are accepted at every endpoint; the service layer uses whichever hits first in `SELECT id FROM organizations WHERE external_id = ? OR slug = ? AND deleted_at IS NULL`.
+
+## `TenantContext`
+
+[`io.translately.security.tenant.TenantContext`](../../backend/security/src/main/kotlin/io/translately/security/tenant/TenantContext.kt) is a `@RequestScoped` CDI bean holding exactly the string the client sent — never the resolved internal id.
+
+```kotlin
+@RequestScoped
+open class TenantContext {
+    open fun current(): String?      // raw URL identifier, or null
+    open fun set(identifier: String?) // filter calls this once per request
+    open fun isBound(): Boolean
+}
+```
+
+Two invariants:
+
+1. **Set exactly once per request**, by `TenantRequestFilter`. Service code reads; nothing else writes.
+2. **Never holds the resolved bigint id.** Resolution is DB-bound, cacheable, and happens inside services — not in the request filter chain.
+
+`null` is a legitimate value (login, signup, `/q/health`, `GET /`). Resource methods that require a tenant assert `isBound()` or receive the identifier as a `@PathParam`.
+
+## `TenantRequestFilter`
+
+[`io.translately.api.tenant.TenantRequestFilter`](../../backend/api/src/main/kotlin/io/translately/api/tenant/TenantRequestFilter.kt) is a JAX-RS `ContainerRequestFilter` at priority `AUTHENTICATION - 100` — it runs **before** every authenticator.
+
+Pseudocode:
+
+```kotlin
+fun filter(ctx: ContainerRequestContext) {
+    tenantContext.set(extractTenant(ctx.uriInfo.path))
+}
+```
+
+`extractTenant` matches `^(api/v\d+/)?organizations/([^/]+)(/.*)?$`. The captured identifier is syntax-validated against the ULID / slug regex; anything else is treated as "no tenant" (so that auth endpoints like `/api/v1/auth/login` leave `TenantContext` unbound).
+
+**Why before auth?** Authenticators (T110 API-key, T103 JWT) need to know the tenant to scope their credential lookup. An API key is issued against a project; without a tenant in scope, the authenticator can't tell whether the credential is valid for this request.
+
+## Row-level isolation
+
+Phase 1 does not activate Hibernate's native multi-tenancy strategy (`@TenantId`) — it uses an explicit `organization_id BIGINT NOT NULL` FK on every tenant-scoped table and Panache repository methods that accept an `organization_id` parameter. This is simpler to reason about and avoids Hibernate's schema-per-tenant gotchas.
+
+Phase 2 will layer a Hibernate `@Filter(name = "tenantFilter")` on the relevant entities, activated from the filter chain once the identifier is resolved. The switch is transparent to callers.
+
+## Cross-organization endpoints
+
+Not every endpoint is tenant-scoped. Four classes of exception:
+
+1. **Auth** — `/api/v1/auth/*` (signup, login, refresh, verify, reset).
+2. **Org listing** — `GET /api/v1/organizations` (the user's own orgs; scoped by `ScopeResolver.canResolveFor(userId, memberships, orgId = null)`).
+3. **Health / metrics** — `/q/health`, `/q/metrics`.
+4. **Root** — `GET /`.
+
+For each, `TenantContext.current()` returns `null` and the resource method handles the non-scoped case explicitly.
+
+## Testing
+
+Integration tests live in `:backend:app` under `tenant/`:
+
+- `TenantRequestFilterIT` drives a Quarkus request and asserts `TenantContext.current()` after the filter runs.
+- Pure-unit tests of `extractTenant` live in `:backend:api`'s test tree — they exercise every path shape without bootstrapping Quarkus.
+- Service-level tests use `@TestProfile` with a stub `TenantContext` so they can run without a full HTTP request.
+
+## Operator implications
+
+- **Per-tenant resource caps** (rate-limit, storage quota) are enforced in service code by loading `organizations.limits` (to be added Phase 6) — the filter never makes a policy decision.
+- **Deleting an organization** soft-deletes the `organizations` row and cascades hard-delete on every FK with `ON DELETE CASCADE`. Multi-tenancy in Phase 1 does not provide a separate "freeze all tenants" switch; that would be a Phase 7 audit feature.
 
 
 <!-- ===== FILE: architecture/request-lifecycle.md ===== -->
 
 # Request lifecycle
 
-> **Status:** placeholder. Filled in by [T111-docs](https://github.com/Pratiyush/translately/issues/135) under Phase 1 doc back-fill.
+A single Translately HTTP request flows through a fixed chain of JAX-RS filters before reaching the resource method, and a fixed chain of exception mappers on the way back. This page documents the order, the invariants each filter maintains, and the error envelope that leaves the server.
 
-This page is tracked in the [Phase 1 milestone](https://github.com/Pratiyush/translately/milestone/2) and is required before `v0.1.0` can be tagged (CLAUDE.md rule #10). Until the back-fill PR lands, treat the parent index as the authoritative source:
+Introduced by: [T108](https://github.com/Pratiyush/translately/issues/133) (`@RequiresScope` + `ScopeAuthorizationFilter`), [T111](https://github.com/Pratiyush/translately/issues/135) (`TenantRequestFilter`), T103 (auth endpoints), T104 (JWT issuer).
 
-- [Product index](../product/README.md)
-- [API index](../api/README.md)
-- [Architecture index](../architecture/README.md)
+Related: [auth architecture](auth.md), [authorization](authorization.md), [multi-tenancy](multi-tenancy.md), [API conventions](../../.kiro/steering/api-conventions.md).
+
+## Filter chain (request side)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant C as Client
+  participant T as TenantRequestFilter<br/>@Priority(AUTHENTICATION - 100)
+  participant A as JwtSecurityScopesFilter<br/>@Priority(AUTHENTICATION)
+  participant Z as ScopeAuthorizationFilter<br/>@Priority(AUTHORIZATION)
+  participant R as Resource method
+  participant S as Service layer
+
+  C->>T: HTTP request
+  T->>T: extractTenant(uriInfo.path)
+  T->>T: TenantContext.set(...)
+  T->>A: continue
+  A->>A: parse Authorization header
+  A->>A: verify JWT / API key / PAT
+  A->>A: SecurityScopes.set(resolved scopes)
+  A->>Z: continue
+  Z->>Z: read @RequiresScope on resource
+  alt scopes cover required
+    Z->>R: invoke
+    R->>S: service call (within @Transactional)
+    S-->>R: result
+    R-->>C: 200 + JSON body
+  else scopes insufficient
+    Z-->>C: 403 INSUFFICIENT_SCOPE
+  end
+```
+
+### Why this order
+
+- **Tenant first.** Authenticators need to know the tenant to resolve project-scoped credentials (API keys, PATs).
+- **Auth second.** The scope authorization filter relies on `SecurityScopes` populated by a successful authentication; without a credential, it cannot answer "does this caller have the required scope?".
+- **Authorization third.** Deliberately last so all upstream context (tenant, principal, scopes) is available when the `@RequiresScope` check runs.
+
+Priorities are JAX-RS numeric — lower runs earlier. `Priorities.AUTHENTICATION = 1000` and `Priorities.AUTHORIZATION = 2000` come from `jakarta.ws.rs.Priorities`; the tenant filter's `-100` offset guarantees it runs before any authenticator regardless of future additions.
+
+## Resource → service → data
+
+- Resource methods are thin: parse path / query / body, call the service, map the return value to a DTO. No transactions at this layer.
+- Services are the transactional boundary. `@Transactional` annotates the public method; nested service calls run in the same transaction.
+- Data access flows through Panache repositories. A single service method is free to issue multiple queries; Hibernate's first-level cache handles same-session identity.
+
+## Exception mapping
+
+Uncaught exceptions land in a JAX-RS `ExceptionMapper`. The standard mappings:
+
+| Throwable | HTTP | Error envelope `code` | Mapper |
+|---|---|---|---|
+| `AuthException.InvalidCredentials` | 401 | `INVALID_CREDENTIALS` | `AuthExceptionMapper` |
+| `AuthException.EmailNotVerified` | 403 | `EMAIL_NOT_VERIFIED` | ″ |
+| `AuthException.RefreshTokenReused` | 401 | `REFRESH_TOKEN_REUSED` | ″ |
+| `AuthException.ValidationFailed` | 400 | `VALIDATION_FAILED` | ″ |
+| `InsufficientScopeException` | 403 | `INSUFFICIENT_SCOPE` | `InsufficientScopeExceptionMapper` |
+| `NotFoundException` | 404 | `NOT_FOUND` | `NotFoundMapper` |
+| `ConstraintViolationException` (Jakarta Validation) | 400 | `VALIDATION_FAILED` | `ConstraintViolationMapper` |
+| `WebApplicationException` | pass-through | varies | default |
+| anything else | 500 | `INTERNAL_ERROR` | `FallbackExceptionMapper` (logs stack, hides detail) |
+
+Every response uses the uniform envelope:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable summary",
+    "details": { "optional": "extra context" }
+  }
+}
+```
+
+See [API errors reference](../api/errors.md) for the full catalogue of `code` strings.
+
+## Observability hooks
+
+- **Request ID** — Quarkus's default `x-request-id` propagates through the filter chain and lands in structured logs. If absent, the server generates one.
+- **OpenTelemetry** — Quarkus OTel is enabled by default; the tenant identifier is added as a span attribute (`translately.tenant`) when bound.
+- **Metrics** — Quarkus Micrometer exposes `/q/metrics` (Prometheus format). Every resource class gets `http.server.requests` counters with route + status labels.
+
+## Cross-cutting tests
+
+- `TenantRequestFilterIT` exercises the order: tenant must be bound before authenticators see `ContainerRequestContext`.
+- `ScopeAuthorizationIT` covers every combination of present / missing scope and proves `INSUFFICIENT_SCOPE` wins over `NOT_FOUND` (we don't leak whether a resource exists).
+- `AuthResourceIT` (T103) round-trips the full credential set against Testcontainers Postgres + Mailpit.
+
+## When to add a new filter
+
+Rarely. Today's chain is three links — keeping it small matters because every filter runs on every request. Before adding one, consider:
+
+1. Can this live in a service instead?
+2. Can this be an `ExceptionMapper` triggered by a thrown business exception?
+3. If it really must be a filter, what priority relative to the existing three?
+
+A new filter ships with a failing test that proves order (it must run before / after an existing one) and a line in this document.
 
 
 <!-- ===== FILE: architecture/webapp.md ===== -->
