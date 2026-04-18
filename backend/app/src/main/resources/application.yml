@@ -17,6 +17,31 @@ translately:
   crypto:
     # 32 bytes: 0x00..0x1F — clearly a dev placeholder, not a secret.
     master-key: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+  jwt:
+    issuer: translately
+    audience: translately-webapp
+    access-ttl: PT15M
+    refresh-ttl: P30D
+
+# ---- Smallrye JWT (signing + verifying bearer tokens) ---------------------
+# DEV/TEST keypair is committed at classpath:/jwt-dev/. NOT a secret.
+# %prod overrides these with operator-supplied paths.
+mp:
+  jwt:
+    verify:
+      publickey:
+        location: classpath:/jwt-dev/public.pem
+      issuer: translately
+      audiences: translately-webapp
+smallrye:
+  jwt:
+    sign:
+      key:
+        location: classpath:/jwt-dev/private.pem
+    new-token:
+      issuer: translately
+      audience: translately-webapp
+
 
 quarkus:
   application:
@@ -26,6 +51,12 @@ quarkus:
   http:
     port: 8080
     host: 0.0.0.0
+    # Parse the Authorization header on every request so JsonWebToken is
+    # populated for our JwtSecurityScopesFilter even when the endpoint lacks
+    # MicroProfile security annotations. Authorization decisions live in
+    # @RequiresScope, not @RolesAllowed.
+    auth:
+      proactive: true
     cors:
       ~: true
       origins: http://localhost:5173,http://127.0.0.1:5173
@@ -76,6 +107,12 @@ quarkus:
       identity-mapping:
         search-base-dn: ou=users,dc=example,dc=com
 
+  # Quarkus OIDC lives on the classpath via :backend:security for Phase 7
+  # (Keycloak + SAML). Disabled by default so smallrye-jwt cleanly owns
+  # JsonWebToken production; the %oidc profile (T107) enables it later.
+  oidc:
+    enabled: false
+
 # -----------------------------------------------------------------------------
 "%dev":
   quarkus:
@@ -109,12 +146,22 @@ quarkus:
 
 # -----------------------------------------------------------------------------
 "%prod":
-  # Prod MUST provide a real master key. If the env var is missing the app
-  # fails to start (Quarkus config resolution will throw on the unresolved
-  # expression below rather than silently reuse the dev placeholder).
+  # Prod MUST provide real keys. Missing env vars → app fails to start
+  # (Quarkus config resolution throws on unresolved expressions rather than
+  # silently reusing dev placeholders).
   translately:
     crypto:
       master-key: ${TRANSLATELY_CRYPTO_MASTER_KEY}
+  mp:
+    jwt:
+      verify:
+        publickey:
+          location: ${TRANSLATELY_JWT_PUBLIC_KEY_PATH}
+  smallrye:
+    jwt:
+      sign:
+        key:
+          location: ${TRANSLATELY_JWT_PRIVATE_KEY_PATH}
   quarkus:
     log:
       level: INFO
