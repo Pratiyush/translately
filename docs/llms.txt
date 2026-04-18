@@ -33,11 +33,14 @@ The canonical LLM-ingestible corpus for Translately's documentation, generated f
 - [Authorization](https://pratiyush.github.io/translately/architecture/authorization/): Scopes + role mapping
 - [Crypto](https://pratiyush.github.io/translately/architecture/crypto/): Envelope encryption for BYOK secrets
 - [Webapp](https://pratiyush.github.io/translately/architecture/webapp/): SPA stack + state model
+- [CI pipelines](https://pratiyush.github.io/translately/architecture/ci/): Six GitHub Actions workflows + branch-protection gates + release pipeline
 
 ## Self-hosting
 
 - [Self-hosting index](https://pratiyush.github.io/translately/self-hosting/): Operator guides
 - [Hardening checklist](https://pratiyush.github.io/translately/self-hosting/hardening/): Production-readiness checklist
+- [Dev compose](https://pratiyush.github.io/translately/self-hosting/dev-compose/): Walkthrough of the root `docker-compose.yml` + `compose-prod.yml` diff
+- [Runtime profiles](https://pratiyush.github.io/translately/self-hosting/runtime-profiles/): Quarkus %dev / %test / %prod + required env vars + native-image build
 
 ## Download
 

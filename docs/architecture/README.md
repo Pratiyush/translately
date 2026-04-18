@@ -21,6 +21,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 - [Authorization](authorization.md) — scopes, roles, `@RequiresScope`, per-resource permissions.
 - [Crypto](crypto.md) — envelope encryption for BYOK secrets, key rotation, at-rest protections.
 - [Webapp shell](webapp.md) — route tree, state stores, TanStack Query boundaries.
+- [CI pipelines](ci.md) — the six GitHub Actions workflows, branch-protection gates, and how tagged releases become signed images.
 
 ## ADRs
 
