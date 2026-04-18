@@ -59,7 +59,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build fast-jar
-        run: ./gradlew :backend:app:build -x test --no-daemon
+        # `checkOpenApiUpToDate` depends on `test` to emit the generated
+        # schema — skip it alongside `test` in the release path; drift is
+        # already enforced on every PR via `ci-backend.yml`.
+        run: ./gradlew :backend:app:build -x test -x checkOpenApiUpToDate --no-daemon
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
