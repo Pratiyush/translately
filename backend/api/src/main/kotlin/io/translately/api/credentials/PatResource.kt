@@ -5,6 +5,7 @@ import io.translately.security.SecurityScopes
 import io.translately.service.credentials.CredentialException
 import io.translately.service.credentials.MintPatRequest
 import io.translately.service.credentials.PatService
+import jakarta.enterprise.inject.Instance
 import jakarta.inject.Inject
 import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.DELETE
@@ -44,8 +45,15 @@ class PatResource {
     @Inject
     lateinit var securityScopes: SecurityScopes
 
+    /**
+     * Use [Instance] rather than direct injection so we never fail the
+     * request with an unhelpful CDI resolution error when the JWT context
+     * isn't fully populated yet (e.g. between the auth filter and the
+     * resource method's entry). `@Authenticated` already ensured a JWT
+     * was present; we read the subject lazily inside [callerId].
+     */
     @Inject
-    lateinit var jwt: JsonWebToken
+    lateinit var jwt: Instance<JsonWebToken>
 
     // ------------------------------------------------------------------
     // mint
@@ -115,9 +123,12 @@ class PatResource {
     // helpers
     // ------------------------------------------------------------------
 
-    private fun callerId(): String =
-        jwt.subject?.takeIf { it.isNotBlank() }
+    private fun callerId(): String {
+        val token =
+            if (jwt.isUnsatisfied) null else runCatching { jwt.get() }.getOrNull()
+        return token?.subject?.takeIf { it.isNotBlank() }
             ?: throw CredentialException.NotFound("User")
+    }
 
     private fun runFlow(block: () -> Response): Response =
         try {
