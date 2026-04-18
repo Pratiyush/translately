@@ -13,4 +13,6 @@ dependencies {
     implementation(libs.quarkus.rest.jackson)
     implementation(libs.quarkus.smallrye.openapi)
     implementation(libs.quarkus.smallrye.health)
+    // For the MicroProfile JsonWebToken injected into JwtSecurityScopesFilter.
+    implementation(libs.quarkus.smallrye.jwt)
 }
