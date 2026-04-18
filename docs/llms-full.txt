@@ -16,7 +16,8 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 
 ## Structure
 
-- [`index.html`](index.html) — landing page (hero, roadmap, quickstart).
+- [`index.md`](index.md) — landing page (hero, roadmap, quickstart, download links). Rendered by Jekyll with the just-the-docs theme.
+- [`_config.yml`](_config.yml) — Jekyll build config (theme, aux links, search, footer).
 - [`product/`](product/) — user-facing feature walkthroughs, one page per flow, light + dark screenshots.
 - [`api/`](api/) — API reference: committed `openapi.json`, scope matrix, error-code catalogue, rate-limit policy, versioning contract.
 - [`architecture/`](architecture/) — module maps, data flow, multi-tenancy, crypto; Architecture Decision Records under [`architecture/decisions/`](architecture/decisions/).
