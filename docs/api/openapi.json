@@ -7,14 +7,51 @@
     "name" : "auth",
     "description" : "Email + password authentication flow"
   }, {
+    "name" : "members",
+    "description" : "Organization membership"
+  }, {
     "name" : "meta",
     "description" : "Service metadata"
   }, {
+    "name" : "organizations",
+    "description" : "Organization lifecycle"
+  }, {
     "name" : "pats",
     "description" : "Personal Access Token lifecycle"
+  }, {
+    "name" : "projects",
+    "description" : "Project lifecycle"
   } ],
   "components" : {
     "schemas" : {
+      "CreateBody" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "slug" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "CreateBody1" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "slug" : {
+            "type" : [ "string", "null" ]
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "baseLanguageTag" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
       "ForgotPasswordRequest" : {
         "type" : "object",
         "properties" : {
@@ -47,11 +84,6 @@
           }
         }
       },
-      "Instant" : {
-        "type" : "string",
-        "format" : "date-time",
-        "examples" : [ "2022-03-10T16:15:50Z" ]
-      },
       "LoginRequest" : {
         "type" : "object",
         "properties" : {
@@ -76,11 +108,9 @@
             }
           },
           "expiresAt" : {
-            "anyOf" : [ {
-              "$ref" : "#/components/schemas/Instant"
-            }, {
-              "type" : "null"
-            } ]
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "examples" : [ "2022-03-10T16:15:50Z" ]
           }
         }
       },
@@ -97,11 +127,9 @@
             }
           },
           "expiresAt" : {
-            "anyOf" : [ {
-              "$ref" : "#/components/schemas/Instant"
-            }, {
-              "type" : "null"
-            } ]
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "examples" : [ "2022-03-10T16:15:50Z" ]
           }
         }
       },
@@ -142,6 +170,33 @@
         "type" : "object",
         "properties" : {
           "token" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "UpdateBody" : {
+        "type" : "object",
+        "properties" : {
+          "role" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "UpdateBody1" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "UpdateBody2" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "description" : {
             "type" : [ "string", "null" ]
           }
         }
@@ -342,6 +397,420 @@
             "description" : "Token already consumed."
           }
         }
+      }
+    },
+    "/api/v1/organizations" : {
+      "get" : {
+        "summary" : "List organizations the caller is a member of.",
+        "tags" : [ "organizations" ],
+        "responses" : {
+          "200" : {
+            "description" : "Listing returned."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "post" : {
+        "summary" : "Create a new organization; caller becomes OWNER.",
+        "tags" : [ "organizations" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Organization created."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "409" : {
+            "description" : "Slug already in use."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}" : {
+      "patch" : {
+        "summary" : "Rename an organization (name only for v0.1.0).",
+        "tags" : [ "organizations" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateBody1"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Updated."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "get" : {
+        "summary" : "Fetch one organization the caller belongs to.",
+        "tags" : [ "organizations" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Found."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/members" : {
+      "get" : {
+        "summary" : "List members of the organization.",
+        "tags" : [ "members" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Listing returned."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Caller is not a member of this org."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/members/{userId}" : {
+      "patch" : {
+        "summary" : "Change a member's role.",
+        "tags" : [ "members" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Role updated."
+          },
+          "400" : {
+            "description" : "Invalid role."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Member not found."
+          },
+          "409" : {
+            "description" : "Would leave the org with no OWNER."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "delete" : {
+        "summary" : "Remove a member from the organization.",
+        "tags" : [ "members" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Removed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Member not found."
+          },
+          "409" : {
+            "description" : "Would leave the org with no OWNER."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/projects" : {
+      "get" : {
+        "summary" : "List every project in the organization.",
+        "tags" : [ "projects" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Listing returned."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "post" : {
+        "summary" : "Create a project inside the organization.",
+        "tags" : [ "projects" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateBody1"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Project created."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Caller is not a member."
+          },
+          "409" : {
+            "description" : "Slug already in use."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}" : {
+      "patch" : {
+        "summary" : "Update name or description.",
+        "tags" : [ "projects" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateBody2"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Updated."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "get" : {
+        "summary" : "Fetch one project.",
+        "tags" : [ "projects" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Found."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
       }
     },
     "/api/v1/projects/{projectId}/api-keys" : {

@@ -74,7 +74,7 @@ class TenantRequestFilterIT {
     fun `organization path populates the tenant context`() {
         given()
             .`when`()
-            .get("/api/v1/organizations/acme/projects/foo/probe")
+            .get("/api/v1/organizations/acme/_tenant_probe/ping")
             .then()
             .statusCode(200)
             .body(equalTo("acme"))
@@ -84,13 +84,22 @@ class TenantRequestFilterIT {
     fun `ULID-shaped organization path populates the tenant context`() {
         given()
             .`when`()
-            .get("/api/v1/organizations/01HT7F8KXN0GZJYQP3M5CRSBNW/projects/foo/probe")
+            .get("/api/v1/organizations/01HT7F8KXN0GZJYQP3M5CRSBNW/_tenant_probe/ping")
             .then()
             .statusCode(200)
             .body(equalTo("01HT7F8KXN0GZJYQP3M5CRSBNW"))
     }
 
     // ---- probe resources -------------------------------------------------
+    //
+    // The probe path intentionally lives under a `_tenant_probe` segment (not
+    // `projects/...`) so it never collides with the real project / member /
+    // org resources in `:backend:api`; the TenantRequestFilter regex only
+    // looks at the `organizations/{id}` prefix, so any leaf path works.
+    //
+    // These are test-only JAX-RS resources. OpenAPI scanning is scoped to
+    // `io.translately.api` in `application.yml`, so they never contribute to
+    // the committed `docs/api/openapi.json`.
 
     @Path("/test/tenant")
     @ApplicationScoped
@@ -104,19 +113,18 @@ class TenantRequestFilterIT {
         fun current(): String = ctx.current().orEmpty()
     }
 
-    @Path("/api/v1/organizations/{orgId}/projects/{projectId}")
+    @Path("/api/v1/organizations/{orgId}/_tenant_probe")
     @ApplicationScoped
     class TenantProbeWithPath {
         @Inject
         lateinit var ctx: TenantContext
 
         @GET
-        @Path("/probe")
+        @Path("/ping")
         @Produces(MediaType.TEXT_PLAIN)
         @Suppress("UnusedParameter")
         fun probe(
             @PathParam("orgId") orgId: String,
-            @PathParam("projectId") projectId: String,
         ): String = ctx.current().orEmpty()
     }
 }

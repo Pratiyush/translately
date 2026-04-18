@@ -19,6 +19,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 - [Rate limits](rate-limits.md) — per-token and per-endpoint policy, headers, `429` retry semantics.
 - [Versioning](versioning.md) — URL-path versioning, deprecation policy, breaking-change rule.
 - [Authentication](auth.md) — JWT vs. PAT vs. API key, bearer-credential split, refresh rotation.
+- [Organizations, projects, members](organizations-and-projects.md) — self-serve org creation, project CRUD inside an org, role-change + remove for members.
 
 ## Conventions (mirror of [`.kiro/steering/api-conventions.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md))
 

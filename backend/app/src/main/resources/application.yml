@@ -33,6 +33,13 @@ mp:
         location: classpath:/jwt-dev/public.pem
       issuer: translately
       audiences: translately-webapp
+  # MicroProfile OpenAPI scan config. Restrict scanning to the production API
+  # package so test-classpath probe resources (tenant, jwt, scope probes in
+  # `io.translately.app.*`) can never leak into the committed
+  # `docs/api/openapi.json` during a test-mode Quarkus boot.
+  openapi:
+    scan:
+      packages: io.translately.api
 smallrye:
   jwt:
     sign:
