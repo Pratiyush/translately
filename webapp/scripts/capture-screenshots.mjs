@@ -1,3 +1,4 @@
+/* global process, console, localStorage */
 // Capture product-doc screenshots for every theme-sensitive page.
 //
 // Usage from the repo root:
@@ -101,10 +102,7 @@ try {
             localStorage.setItem('translately.theme', theme);
             if (seed) {
               localStorage.setItem(authKey, JSON.stringify(user));
-              localStorage.setItem(
-                'translately.activeOrgId',
-                user.activeOrgId,
-              );
+              localStorage.setItem('translately.activeOrgId', user.activeOrgId);
             }
           } catch {
             // Some iframes throw on localStorage access in partitioned
