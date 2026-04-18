@@ -18,10 +18,14 @@ import org.junit.jupiter.api.Test
 /**
  * End-to-end test for the PAT surface (T110).
  *
- * PATs don't require a scope beyond `@Authenticated` — every user can
- * manage their own credentials — so most tests just need a valid JWT. The
- * scope-intersection rule still applies at mint time and is exercised via
- * the `X-Test-Scopes` header lifting the caller's effective scope set.
+ * PATs require only `@Authenticated`; every user manages their own
+ * credentials. The scope-intersection rule still applies at mint time
+ * and is exercised here via the `X-Test-Scopes` header lifting the
+ * caller's effective scope set (the same pattern `ApiKeyResourceIT`
+ * uses). We mint a real JWT so `@Authenticated` is satisfied, but the
+ * service-level intersection is driven by `TestScopeHeaderFilter` —
+ * real per-org membership-to-scope mapping lands later in the phase and
+ * will replace the header once it does.
  */
 @QuarkusTest
 @QuarkusTestResource(value = PostgresAndMailpitResource::class, restrictToAnnotatedClass = true)
@@ -32,6 +36,7 @@ open class PatResourceIT {
     @Inject
     lateinit var jwtIssuer: JwtIssuer
 
+    /** JWT subject is the acting user's ULID — stable identity for /users/me. */
     private fun seedToken(): Pair<String, String> {
         val email = "pat-it-${System.nanoTime()}@example.com"
         val uid = helpers.seedVerifiedUser(email)
@@ -40,7 +45,7 @@ open class PatResourceIT {
                 .issue(
                     userExternalId = uid,
                     email = email,
-                    scopes = setOf(Scope.ORG_READ, Scope.PROJECTS_READ, Scope.KEYS_READ),
+                    scopes = setOf(Scope.ORG_READ, Scope.PROJECTS_READ),
                 ).accessToken
         return token to uid
     }
@@ -49,10 +54,11 @@ open class PatResourceIT {
     fun `mint → list → revoke happy path`() {
         val (token, _) = seedToken()
 
-        // mint
+        // mint — caller holds keys.read via X-Test-Scopes; PAT requests keys.read.
         val mintResp =
             given()
                 .header("Authorization", "Bearer $token")
+                .header("X-Test-Scopes", Scope.KEYS_READ.token)
                 .contentType(ContentType.JSON)
                 .body(
                     """
@@ -71,7 +77,7 @@ open class PatResourceIT {
                 .extract()
         val patId = mintResp.jsonPath().getString("id")
 
-        // list
+        // list — no scope header required for PAT endpoints (only @Authenticated).
         given()
             .header("Authorization", "Bearer $token")
             .`when`()
@@ -110,8 +116,9 @@ open class PatResourceIT {
         val (token, _) = seedToken()
         given()
             .header("Authorization", "Bearer $token")
+            // Caller holds keys.read only; asking for api-keys.write must 403.
+            .header("X-Test-Scopes", Scope.KEYS_READ.token)
             .contentType(ContentType.JSON)
-            // caller holds only KEYS_READ + ORG_READ + PROJECTS_READ; api-keys.write is outside
             .body(
                 """
                 {
@@ -132,6 +139,7 @@ open class PatResourceIT {
         val (token, _) = seedToken()
         given()
             .header("Authorization", "Bearer $token")
+            .header("X-Test-Scopes", Scope.KEYS_READ.token)
             .contentType(ContentType.JSON)
             .body(
                 """
@@ -168,6 +176,7 @@ open class PatResourceIT {
         val patId =
             given()
                 .header("Authorization", "Bearer $tokenA")
+                .header("X-Test-Scopes", Scope.KEYS_READ.token)
                 .contentType(ContentType.JSON)
                 .body("""{"name":"A","scopes":["keys.read"]}""")
                 .`when`()

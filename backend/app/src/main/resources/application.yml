@@ -72,6 +72,12 @@ quarkus:
     info-license-url: https://opensource.org/licenses/MIT
     info-contact-name: Pratiyush
     info-contact-url: https://github.com/Pratiyush/translately
+    # Generate a static schema file alongside the build.
+    # Path is relative to the :backend:app module root, so ../../docs/api/
+    # resolves to <repo-root>/docs/api/ — committed and served by Pages.
+    # A Gradle task (generateOpenApi) copies + canonicalises the output.
+    store-schema-directory: build/openapi
+    store-schema-file-name: openapi
 
   swagger-ui:
     always-include: true
