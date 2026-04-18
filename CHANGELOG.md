@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Added (Phase 1 in progress)
+## [0.1.0] — 2026-04-18 — Phase 1: Auth + Organizations
+
+### Added (Phase 1)
 - **JPA entities for auth + orgs** (`:backend:data`): `User`, `Organization`, `OrganizationMember`, `Project`, `ProjectLanguage`, `ApiKey`, `Pat`. Common `BaseEntity` superclass with auto-maintained `createdAt` / `updatedAt` + external ULID. Enums: `OrganizationRole`, `LanguageDirection`, `AiProvider`.
 - **ULID generator** (`io.translately.data.Ulid`) — Crockford-base32, 26 chars, monotonic within a single millisecond batch.
 - 47 Kotest tests covering ULID properties, email normalization, slug normalization, verification status, AI-flag logic, token active/expired/revoked semantics, and entity defaults.
