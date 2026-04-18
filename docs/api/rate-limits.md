@@ -65,7 +65,7 @@ Content-Type: application/json
 
 ## Operator tuning
 
-Each limit is a config property under `translately.rate-limit.*` in [`application.properties`](../../backend/app/src/main/resources/application.properties). Override via env var:
+Each limit is a config property under `translately.rate-limit.*` in [`backend/app/src/main/resources/application.yml`](../../backend/app/src/main/resources/application.yml). Override via env var:
 
 ```
 TRANSLATELY_RATE_LIMIT_AUTHENTICATED_READ=1200
