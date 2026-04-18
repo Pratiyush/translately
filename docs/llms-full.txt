@@ -2825,6 +2825,8 @@ Shipped in [Unreleased](https://github.com/Pratiyush/translately/blob/master/CHA
 title: Application shell
 parent: Product
 nav_order: 1
+# See docs/product/auth.md for why this permalink overrides pretty.
+permalink: /product/app-shell.html
 ---
 
 # Application shell
@@ -2855,8 +2857,8 @@ The `<header>` is the single [`banner`](https://www.w3.org/TR/wai-aria-1.2/#bann
 ### Screenshot
 
 <picture>
-  <source srcset="../screenshots/dashboard-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/dashboard-light.png" alt="Authenticated app shell on the dashboard route: brand, org switcher, primary nav, theme toggle, and user avatar in the top bar." />
+  <source srcset="screenshots/dashboard-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/dashboard-light.png" alt="Authenticated app shell on the dashboard route: brand, org switcher, primary nav, theme toggle, and user avatar in the top bar." />
 </picture>
 
 ## OrgSwitcher
@@ -2952,6 +2954,12 @@ First introduced in [Unreleased](https://github.com/Pratiyush/translately/blob/m
 title: Authentication
 parent: Product
 nav_order: 3
+# Override the site-wide `permalink: pretty` so `<picture>` srcs that
+# reference `screenshots/foo.png` (same-dir) resolve to
+# `/product/screenshots/foo.png` in the browser. With the pretty
+# default, this URL would be `/product/auth/` (trailing slash) and
+# `screenshots/foo.png` would 404 at `/product/auth/screenshots/foo.png`.
+permalink: /product/auth.html
 ---
 
 
@@ -2976,29 +2984,29 @@ T117 wires five public routes against these endpoints:
 ### Sign in
 
 <picture>
-  <source srcset="../screenshots/signin-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/signin-light.png" alt="Sign in page — Translately logo, email + password form, primary sign-in button." />
+  <source srcset="screenshots/signin-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/signin-light.png" alt="Sign in page — Translately logo, email + password form, primary sign-in button." />
 </picture>
 
 ### Sign up
 
 <picture>
-  <source srcset="../screenshots/signup-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/signup-light.png" alt="Sign up page — full name, email, and password fields with the password strength hint." />
+  <source srcset="screenshots/signup-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/signup-light.png" alt="Sign up page — full name, email, and password fields with the password strength hint." />
 </picture>
 
 ### Forgot password
 
 <picture>
-  <source srcset="../screenshots/forgot-password-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/forgot-password-light.png" alt="Forgot password page — single email input, anti-enumeration 202 means we always show the same success message." />
+  <source srcset="screenshots/forgot-password-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/forgot-password-light.png" alt="Forgot password page — single email input, anti-enumeration 202 means we always show the same success message." />
 </picture>
 
 ### Verify email (pending state)
 
 <picture>
-  <source srcset="../screenshots/verify-email-pending-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/verify-email-pending-light.png" alt="Verifying email page — spinner visible while the token is exchanged." />
+  <source srcset="screenshots/verify-email-pending-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/verify-email-pending-light.png" alt="Verifying email page — spinner visible while the token is exchanged." />
 </picture>
 
 All five pages use **React Hook Form + Zod** for client-side validation (mirrors the backend's `VALIDATION_FAILED` rules so first-wrong-click feedback is instant) and **TanStack Query** mutations against the **typed `api` client** (T120). Server errors round-trip via `error.code`; localised strings live in [`webapp/src/i18n/en.json`](https://github.com/Pratiyush/translately/blob/master/webapp/src/i18n/en.json) under the `auth.error.*` namespace — unknown codes fall back to `error.message`.
@@ -3137,6 +3145,8 @@ docker compose up -d postgres mailpit
 title: Organizations, projects, and members
 parent: Product
 nav_order: 5
+# See docs/product/auth.md for why this permalink overrides pretty.
+permalink: /product/organizations-and-projects.html
 ---
 
 # Organizations, projects, and members
@@ -3165,8 +3175,8 @@ Every page lives inside the authenticated shell — a visitor without a session 
   - Dialog closes on success and the list refreshes via TanStack Query invalidation.
 
 <picture>
-  <source srcset="../screenshots/orgs-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/orgs-light.png" alt="Organizations page with Create organization CTA and the page heading." />
+  <source srcset="screenshots/orgs-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/orgs-light.png" alt="Organizations page with Create organization CTA and the page heading." />
 </picture>
 
 ## `/orgs/:orgSlug` — tabbed detail
@@ -3201,8 +3211,8 @@ Tabs are a plain `role="tablist"` + `role="tabpanel"` pattern (no Radix needed) 
 - Creation lives on `/orgs/:slug` — this page is an index, not a create surface. Links through on its empty state so users don't have to hunt for the button.
 
 <picture>
-  <source srcset="../screenshots/projects-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/projects-light.png" alt="Projects index rendered for the active organization — tenant-scoped page with the org's name in the subtitle." />
+  <source srcset="screenshots/projects-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/projects-light.png" alt="Projects index rendered for the active organization — tenant-scoped page with the org's name in the subtitle." />
 </picture>
 
 ## Keyboard + accessibility

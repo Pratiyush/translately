@@ -2,6 +2,12 @@
 title: Authentication
 parent: Product
 nav_order: 3
+# Override the site-wide `permalink: pretty` so `<picture>` srcs that
+# reference `screenshots/foo.png` (same-dir) resolve to
+# `/product/screenshots/foo.png` in the browser. With the pretty
+# default, this URL would be `/product/auth/` (trailing slash) and
+# `screenshots/foo.png` would 404 at `/product/auth/screenshots/foo.png`.
+permalink: /product/auth.html
 ---
 
 
@@ -26,29 +32,29 @@ T117 wires five public routes against these endpoints:
 ### Sign in
 
 <picture>
-  <source srcset="../screenshots/signin-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/signin-light.png" alt="Sign in page — Translately logo, email + password form, primary sign-in button." />
+  <source srcset="screenshots/signin-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/signin-light.png" alt="Sign in page — Translately logo, email + password form, primary sign-in button." />
 </picture>
 
 ### Sign up
 
 <picture>
-  <source srcset="../screenshots/signup-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/signup-light.png" alt="Sign up page — full name, email, and password fields with the password strength hint." />
+  <source srcset="screenshots/signup-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/signup-light.png" alt="Sign up page — full name, email, and password fields with the password strength hint." />
 </picture>
 
 ### Forgot password
 
 <picture>
-  <source srcset="../screenshots/forgot-password-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/forgot-password-light.png" alt="Forgot password page — single email input, anti-enumeration 202 means we always show the same success message." />
+  <source srcset="screenshots/forgot-password-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/forgot-password-light.png" alt="Forgot password page — single email input, anti-enumeration 202 means we always show the same success message." />
 </picture>
 
 ### Verify email (pending state)
 
 <picture>
-  <source srcset="../screenshots/verify-email-pending-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/verify-email-pending-light.png" alt="Verifying email page — spinner visible while the token is exchanged." />
+  <source srcset="screenshots/verify-email-pending-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/verify-email-pending-light.png" alt="Verifying email page — spinner visible while the token is exchanged." />
 </picture>
 
 All five pages use **React Hook Form + Zod** for client-side validation (mirrors the backend's `VALIDATION_FAILED` rules so first-wrong-click feedback is instant) and **TanStack Query** mutations against the **typed `api` client** (T120). Server errors round-trip via `error.code`; localised strings live in [`webapp/src/i18n/en.json`](https://github.com/Pratiyush/translately/blob/master/webapp/src/i18n/en.json) under the `auth.error.*` namespace — unknown codes fall back to `error.message`.

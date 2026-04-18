@@ -2,6 +2,8 @@
 title: Organizations, projects, and members
 parent: Product
 nav_order: 5
+# See docs/product/auth.md for why this permalink overrides pretty.
+permalink: /product/organizations-and-projects.html
 ---
 
 # Organizations, projects, and members
@@ -30,8 +32,8 @@ Every page lives inside the authenticated shell — a visitor without a session 
   - Dialog closes on success and the list refreshes via TanStack Query invalidation.
 
 <picture>
-  <source srcset="../screenshots/orgs-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/orgs-light.png" alt="Organizations page with Create organization CTA and the page heading." />
+  <source srcset="screenshots/orgs-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/orgs-light.png" alt="Organizations page with Create organization CTA and the page heading." />
 </picture>
 
 ## `/orgs/:orgSlug` — tabbed detail
@@ -66,8 +68,8 @@ Tabs are a plain `role="tablist"` + `role="tabpanel"` pattern (no Radix needed) 
 - Creation lives on `/orgs/:slug` — this page is an index, not a create surface. Links through on its empty state so users don't have to hunt for the button.
 
 <picture>
-  <source srcset="../screenshots/projects-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/projects-light.png" alt="Projects index rendered for the active organization — tenant-scoped page with the org's name in the subtitle." />
+  <source srcset="screenshots/projects-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/projects-light.png" alt="Projects index rendered for the active organization — tenant-scoped page with the org's name in the subtitle." />
 </picture>
 
 ## Keyboard + accessibility

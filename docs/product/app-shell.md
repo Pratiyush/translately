@@ -2,6 +2,8 @@
 title: Application shell
 parent: Product
 nav_order: 1
+# See docs/product/auth.md for why this permalink overrides pretty.
+permalink: /product/app-shell.html
 ---
 
 # Application shell
@@ -32,8 +34,8 @@ The `<header>` is the single [`banner`](https://www.w3.org/TR/wai-aria-1.2/#bann
 ### Screenshot
 
 <picture>
-  <source srcset="../screenshots/dashboard-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="../screenshots/dashboard-light.png" alt="Authenticated app shell on the dashboard route: brand, org switcher, primary nav, theme toggle, and user avatar in the top bar." />
+  <source srcset="screenshots/dashboard-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="screenshots/dashboard-light.png" alt="Authenticated app shell on the dashboard route: brand, org switcher, primary nav, theme toggle, and user avatar in the top bar." />
 </picture>
 
 ## OrgSwitcher
