@@ -18,6 +18,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 - [Application shell](app-shell.md) — nav, org switcher, user menu, routing _(added by T115)_
 - [Theming](theming.md) — light / dark / system toggle, tokens, persistence _(added by T114)_
 - [Authentication](auth.md) — signup, email verify, login, password reset _(added by T103)_
+- [API keys & PATs](api-keys-and-pats.md) — project-scoped API keys and user-scoped Personal Access Tokens _(added by T110)_
 
 ## Conventions
 
