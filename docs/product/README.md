@@ -19,6 +19,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 - [Theming](theming.md) — light / dark / system toggle, tokens, persistence _(added by T114)_
 - [Authentication](auth.md) — signup, email verify, login, password reset _(added by T103)_
 - [API keys & PATs](api-keys-and-pats.md) — project-scoped API keys and user-scoped Personal Access Tokens _(added by T110)_
+- [Organizations, projects, and members](organizations-and-projects.md) — real CRUD UI for tenants, projects, and role-based membership _(added by T118 + T119)_
 
 ## Conventions
 
