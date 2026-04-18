@@ -40,6 +40,8 @@ secrets/
 
 # Per-user Claude harness settings (keep `.claude/commands/`, skip local settings)
 .claude/settings.local.json
+# Transient git worktrees used by the local agent harness (never committed)
+.claude/worktrees/
 
 # TypeScript incremental build info
 *.tsbuildinfo
