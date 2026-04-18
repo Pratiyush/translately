@@ -93,7 +93,6 @@ exclude:
   - vendor/
   - node_modules/
   - README.md # repo-facing; docs/index.md is the site root
-  - llms-full.txt
 
 # Default layout for any page without an explicit one.
 defaults:
