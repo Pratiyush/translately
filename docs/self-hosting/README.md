@@ -14,6 +14,8 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 ## Pages
 
 - [Hardening checklist](hardening.md) — production-readiness before first deploy.
+- [Dev compose](dev-compose.md) — operator walkthrough of the root `docker-compose.yml` (Postgres 16, Redis 7, MinIO, Mailpit, optional Keycloak), plus the `compose-prod.yml` diff for production.
+- [Runtime profiles](runtime-profiles.md) — the `%dev` / `%test` / `%prod` Quarkus profile split, required env vars per profile, and the GraalVM native-image build recipe.
 
 *More pages land as Phase 1+ ships (env-var catalogue, backup / restore drill, observability, upgrade guide).*
 

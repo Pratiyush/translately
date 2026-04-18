@@ -1014,6 +1014,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 - [Authorization](authorization.md) — scopes, roles, `@RequiresScope`, per-resource permissions.
 - [Crypto](crypto.md) — envelope encryption for BYOK secrets, key rotation, at-rest protections.
 - [Webapp shell](webapp.md) — route tree, state stores, TanStack Query boundaries.
+- [CI pipelines](ci.md) — the six GitHub Actions workflows, branch-protection gates, and how tagged releases become signed images.
 
 ## ADRs
 
@@ -1271,6 +1272,255 @@ HTTP status: `403`. Stable across minor versions — CLI, SDK, and webapp all ma
 - `orgId ≠ null` — filter memberships by that org, then union. A user with no membership in the org receives the empty set → every downstream `@RequiresScope` fails closed.
 
 The resolver is intentionally stateless and pure — no DB, no cache. The service layer loads memberships once (at JWT mint or per-request authentication) and passes them in. Cache invalidation is therefore not a problem this layer solves.
+
+
+<!-- ===== FILE: architecture/ci.md ===== -->
+
+---
+title: CI pipelines
+parent: Architecture
+nav_order: 10
+---
+
+# CI pipelines
+
+Translately's GitHub Actions live under [`.github/workflows/`](https://github.com/Pratiyush/translately/tree/master/.github/workflows). Six workflows handle PR validation, security scanning, link health, docs deploy, and signed-tag releases. Together with the `master` branch-protection rules, they form the full quality gate between a PR and a signed release tag.
+
+## Workflow map
+
+```mermaid
+flowchart LR
+  subgraph PR/Push
+    A[ci-backend.yml]
+    B[ci-webapp.yml]
+    C[codeql.yml]
+    D[link-checker.yml]
+    E[pages.yml]
+  end
+  subgraph Tag push
+    F[release.yml]
+  end
+
+  PR[Open/update PR] --> A
+  PR --> B
+  PR --> C
+  PR --> D
+
+  MASTER[Push to master] --> A
+  MASTER --> B
+  MASTER --> C
+  MASTER --> D
+  MASTER --> E
+
+  TAG[Push signed tag v*] --> F
+  F --> GHCR[ghcr.io images]
+  F --> REL[GitHub Release]
+
+  SCHED[Weekly schedule] -.-> C
+  SCHED -.-> D
+```
+
+## Branch protection (master)
+
+The workflows sit alongside branch-protection rules on `master`. Both together are the gate. Current settings (verify in repo settings or `gh api repos/Pratiyush/translately/branches/master/protection`):
+
+- **Required signed commits.** Unsigned commits are rejected — no `--no-verify`, ever. CLAUDE.md rule #1 is mirrored as server-side enforcement.
+- **Required linear history.** No merge commits on `master`; PRs merge via squash or rebase.
+- **Required CODEOWNERS review.** Every matching path in [`CODEOWNERS`](https://github.com/Pratiyush/translately/blob/master/CODEOWNERS) pulls `@Pratiyush` in as a required reviewer.
+- **Dismiss stale reviews on new commits.** Re-review required after any push.
+- **Required conversation resolution.** Every review thread must be resolved before merge.
+- **No force-push, no branch deletion.** Masters stays append-only.
+
+CI workflows below are listed as required status checks — a red check blocks the merge button.
+
+## `ci-backend.yml` — backend build + test
+
+[File](https://github.com/Pratiyush/translately/blob/master/.github/workflows/ci-backend.yml). Owns JVM build, lint, test, coverage for the Gradle multi-module backend.
+
+**Triggers:** `push` to `master` and every `pull_request`, filtered to paths under `backend/**`, `buildSrc/**`, `gradle/**`, the top-level Gradle files, or this workflow itself. Unrelated docs-only PRs don't spin it up.
+
+**Concurrency:** `ci-backend-${{ github.ref }}` with `cancel-in-progress: true` — a fresh push supersedes the previous run.
+
+**Permissions:** `contents: read`.
+
+**Key steps:**
+
+1. `actions/checkout@v4`.
+2. `actions/setup-java@v4` — Temurin JDK **21**.
+3. `gradle/actions/setup-gradle@v4` with cache cleanup.
+4. `./gradlew projects --no-daemon` — sanity-check the 13-module wiring before spending time on anything heavier.
+5. `./gradlew ktlintCheck detekt --no-daemon --continue` — ktlint + detekt (`--continue` so both lint reports emit even if one fails).
+6. `./gradlew build --no-daemon --stacktrace` — compile, test, Jacoco coverage, archive.
+7. `./gradlew jacocoTestReport --no-daemon` (always) — regenerates the HTML report even when tests fail.
+8. Upload **`backend-coverage`** and **`backend-test-reports`** artifacts (14-day retention).
+
+The `checkOpenApiUpToDate` Gradle task (wired into `build` via `check` in [`buildSrc/.../quarkus-app`](https://github.com/Pratiyush/translately/blob/master/backend/app/build.gradle.kts)) fails the job if the committed `docs/api/openapi.json` drifts from what the backend emits — this is how API-spec docs stay in sync with code on every PR.
+
+**Required secrets:** none.
+
+## `ci-webapp.yml` — webapp lint + test + build
+
+[File](https://github.com/Pratiyush/translately/blob/master/.github/workflows/ci-webapp.yml). Handles pnpm-based build for `webapp/`.
+
+**Triggers:** push to `master` / any PR, filtered to `webapp/**`, `pnpm-workspace.yaml`, `package.json`, `pnpm-lock.yaml`, or this workflow file.
+
+**Concurrency:** `ci-webapp-${{ github.ref }}` with cancel-in-progress.
+
+**Guard job (`guard`):** checks for `webapp/package.json` and outputs `present=true|false`. The build job is skipped when the webapp hasn't been scaffolded yet — this was important in early Phase 0 before the webapp existed, and it's still the defensive pattern if the tree is ever reshaped.
+
+**Build job key steps:**
+
+1. Checkout.
+2. `pnpm/action-setup@v4` + `actions/setup-node@v4` (Node **22**, pnpm cache enabled).
+3. `pnpm install --frozen-lockfile` — lockfile drift fails the job.
+4. `pnpm --filter @translately/webapp lint` — ESLint + Prettier.
+5. `pnpm --filter @translately/webapp codegen:check` — regenerates `src/lib/api/types.gen.ts` from the committed `docs/api/openapi.json` and fails if the output drifts. Mirrors the backend's `checkOpenApiUpToDate` so the generated TypeScript client stays pinned to the spec.
+6. `pnpm --filter @translately/webapp test -- --run` — Vitest.
+7. `pnpm --filter @translately/webapp build` — Vite production bundle.
+8. Upload `webapp-bundle` artifact (`webapp/dist/`, 14-day retention).
+
+**Required secrets:** none.
+
+## `codeql.yml` — SAST across three languages
+
+[File](https://github.com/Pratiyush/translately/blob/master/.github/workflows/codeql.yml). GitHub CodeQL static analysis with the `security-and-quality` query pack.
+
+**Triggers:**
+
+- `push` to `master`.
+- `pull_request` targeting `master`.
+- Scheduled: every **Tuesday 03:17 UTC** (catches new CodeQL rules without waiting for the next PR).
+
+**Permissions:** `actions: read`, `contents: read`, `security-events: write` (so findings upload to the Security tab).
+
+**Detect job:** probes for the presence of any JS/TS source root (`webapp/`, `sdks/js/`, `sdks/react/`, `cli/`). Sets `has_jsts=true|false`. CodeQL's JS/TS extractor errors out with "no source" if it's pointed at an empty tree, so we skip it until there's something to scan.
+
+**Analyze matrix:**
+
+| Language | Build mode | Notes |
+|---|---|---|
+| `java-kotlin` | `autobuild` | Uses the Gradle wrapper. Temurin JDK 21 set up before init. |
+| `javascript-typescript` | `none` | Gated on `has_jsts=true`. No build step needed — parses source directly. |
+| `actions` | `none` | Scans the workflow YAML itself for action misuse / pinning issues. |
+
+Each matrix leg runs the standard `codeql-action/init@v3` → `codeql-action/analyze@v3` pair with `queries: security-and-quality`.
+
+Timeout: 30 minutes. `fail-fast: false` so one language failing doesn't mask the others.
+
+**Required secrets:** none (uses the default `GITHUB_TOKEN`).
+
+## `link-checker.yml` — lychee
+
+[File](https://github.com/Pratiyush/translately/blob/master/.github/workflows/link-checker.yml). Runs [lychee](https://github.com/lycheeverse/lychee-action) over every Markdown file and the built `docs/**/*.html` to catch link rot.
+
+**Triggers:**
+
+- Push / PR on `**/*.md`, anything under `docs/`, or this workflow file.
+- Scheduled: **every Monday 06:13 UTC**.
+
+Config: [`lychee.toml`](https://github.com/Pratiyush/translately/blob/master/lychee.toml) at the repo root. Notable bits:
+
+- `exclude_path = ["_reference"]` — skip the gitignored third-party mirror.
+- A list of known-future URLs (release tags that 404 until their tag lands, the Pages site during first-deploy cache, the docs-bundle ZIP that's built inside `pages.yml` rather than committed) is excluded so link-rot remains actionable.
+- `accept = [200, 202, 206, 301, 302, 303, 307, 308, 403, 429]` — common redirect/throttle codes count as healthy.
+
+**Key steps:**
+
+1. Checkout.
+2. `lycheeverse/lychee-action@v2` with `--config lychee.toml './**/*.md' 'docs/**/*.html'`, `fail: true`.
+3. Always upload the `lychee-report.md` artifact (14-day retention).
+
+**Permissions:** `contents: read`, `issues: write` (some lychee integrations can auto-open issues; we don't currently wire that on).
+
+**Required secrets:** none.
+
+## `pages.yml` — GitHub Pages deploy (docs site)
+
+[File](https://github.com/Pratiyush/translately/blob/master/.github/workflows/pages.yml). Builds the Jekyll site under `docs/` with the `just-the-docs` remote theme and publishes it to GitHub Pages.
+
+**Triggers:**
+
+- `push` to `master` on `docs/**` or this workflow file.
+- `workflow_dispatch` — manual re-deploy without a content change.
+
+**Permissions:** `contents: read`, `pages: write`, `id-token: write` (required by `actions/deploy-pages`).
+
+**Concurrency:** `group: pages`, `cancel-in-progress: true` — a newer deploy cancels an in-flight one.
+
+**Two jobs:**
+
+1. **`build`** (runs on `ubuntu-latest`):
+   - Checkout.
+   - Build the **downloadable docs bundle**: `docs/downloads/translately-docs.zip` containing every raw `.md` / `.txt` / image under `docs/` so offline users can consume the full corpus without cloning. Built **before** Jekyll so it ends up inside `_site`.
+   - `actions/configure-pages@v5`.
+   - `actions/jekyll-build-pages@v1` with `source: ./docs`, `destination: ./_site`.
+   - `actions/upload-pages-artifact@v3`.
+
+2. **`deploy`** (depends on `build`):
+   - `actions/deploy-pages@v4` → <https://pratiyush.github.io/translately/>.
+   - Environment: `github-pages` (enforces the Pages-specific OIDC token).
+
+**Required secrets:** none — GitHub-managed Pages tokens only.
+
+## `release.yml` — signed-tag pipeline
+
+[File](https://github.com/Pratiyush/translately/blob/master/.github/workflows/release.yml). The big one. Fires only when a `v*` tag is pushed.
+
+**Trigger:** `push` with `tags: ['v*']`. Per the phase gate in [CLAUDE.md rule #6](https://github.com/Pratiyush/translately/blob/master/CLAUDE.md), Phase N ends with a signed tag `v0.N.0`; `v1.0.0` is Phase 7.
+
+**Permissions:** `contents: write` (for the Release), `packages: write` (GHCR push), `id-token: write` (Cosign keyless).
+
+**Concurrency:** `release-${{ github.ref }}`, **not cancel-in-progress** — releases run to completion.
+
+**Jobs:**
+
+### `verify` — signed tag + version extraction
+
+- Extracts `VERSION="${TAG#v}"`.
+- Flags `is_prerelease=true` when `VERSION` starts with `0.` (all Phase 0–7 tags are pre-1.0).
+- `git tag -v` checks GPG signature. Currently a soft warning on CI (the ephemeral runner may not have the pubkey imported) — branch protection on `master` is the real enforcement that unsigned commits / tags can't land.
+
+### `build-backend`
+
+- Temurin JDK 21 + Gradle.
+- `./gradlew :backend:app:build -x test -x checkOpenApiUpToDate --no-daemon` — builds the Quarkus **fast-jar**, skipping `test` and `checkOpenApiUpToDate` because both depend on a boot-time Quarkus test-mode run that PR-time CI has already enforced.
+- Uploads `backend-fastjar-${VERSION}` artifact (30-day retention).
+
+### `build-webapp`
+
+- Guard-checks for `webapp/package.json` first (mirrors `ci-webapp.yml`).
+- pnpm install + `pnpm --filter @translately/webapp build`.
+- Uploads `webapp-bundle-${VERSION}` artifact (30-day retention).
+
+### `docker` — multi-arch image build + push + sign
+
+Depends on `verify`, `build-backend`, `build-webapp`. Skipped for `0.0.1` bootstraps (`if: needs.verify.outputs.version != '0.0.1'`).
+
+- `docker/setup-qemu-action@v3` + `docker/setup-buildx-action@v3`.
+- Log in to `ghcr.io` with the job's `GITHUB_TOKEN`.
+- **Backend image:** `docker/build-push-action@v6` with `infra/docker/backend.Dockerfile`, platforms `linux/amd64,linux/arm64`, `provenance: mode=max`, `sbom: true`.
+- **Webapp image:** same, conditional on `hashFiles('webapp/package.json') != ''`.
+- Tags pushed: `ghcr.io/pratiyush/translately-{backend,webapp}:${VERSION}` and `:latest`.
+- OCI labels pinned: `image.source`, `image.revision`, `image.version`, `image.licenses=MIT`.
+- `sigstore/cosign-installer@v3` + `cosign sign` (keyless, `COSIGN_YES=true`) — signatures verifiable from the image tag alone.
+
+**Required secrets:** none (GHCR uses `GITHUB_TOKEN`; Cosign is OIDC/keyless via `id-token: write`).
+
+### `release` — GitHub Release creation
+
+- `fetch-depth: 0` so the CHANGELOG awk scrape can read history.
+- Extracts the `## [${VERSION}]` section from `CHANGELOG.md` with `awk`; falls back to a stub.
+- Downloads the backend + webapp artifacts and `tar -czf`'s them into `translately-backend-${VERSION}.tar.gz` / `translately-webapp-${VERSION}.tar.gz`.
+- `softprops/action-gh-release@v2` creates or updates the Release, attaches both tarballs, and flags pre-release based on the `verify` output.
+
+## How the workflows compose
+
+- **Every PR** runs `ci-backend`, `ci-webapp` (when webapp paths changed), `codeql`, and `link-checker` (for Markdown/docs changes). All four must be green; CODEOWNERS approval + signed commits are required; linear history is enforced on merge.
+- **Push to `master`** re-runs the same four and additionally deploys `docs/` via `pages.yml` when the docs tree changes.
+- **Signed `v*` tag push** triggers `release.yml` — builds fast-jar + webapp bundle, publishes signed multi-arch images to GHCR, and creates the GitHub Release with CHANGELOG-sourced notes.
+- **Scheduled runs** — CodeQL weekly (Tue 03:17 UTC) catches new rule updates; lychee weekly (Mon 06:13 UTC) catches external link rot that a code-free week would miss.
+
+For the contributor-facing workflow that sits on top of these pipelines (branch naming, commit conventions, pre-merge checklist), see [`.kiro/steering/contributing-rules.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/contributing-rules.md) and the [pull-request template](https://github.com/Pratiyush/translately/blob/master/.github/PULL_REQUEST_TEMPLATE.md).
 
 
 <!-- ===== FILE: architecture/crypto.md ===== -->
@@ -3057,6 +3307,8 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 ## Pages
 
 - [Hardening checklist](hardening.md) — production-readiness before first deploy.
+- [Dev compose](dev-compose.md) — operator walkthrough of the root `docker-compose.yml` (Postgres 16, Redis 7, MinIO, Mailpit, optional Keycloak), plus the `compose-prod.yml` diff for production.
+- [Runtime profiles](runtime-profiles.md) — the `%dev` / `%test` / `%prod` Quarkus profile split, required env vars per profile, and the GraalVM native-image build recipe.
 
 *More pages land as Phase 1+ ships (env-var catalogue, backup / restore drill, observability, upgrade guide).*
 
@@ -3073,6 +3325,259 @@ pnpm --filter webapp dev             # webapp at :5173
 ```
 
 For production see [`infra/compose-prod.yml`](https://github.com/Pratiyush/translately/blob/master/infra/compose-prod.yml) and the [hardening checklist](hardening.md). Helm chart lands with [T709](https://github.com/Pratiyush/translately/issues/93) in Phase 7.
+
+
+<!-- ===== FILE: self-hosting/dev-compose.md ===== -->
+
+---
+title: Dev compose
+parent: Self-hosting
+nav_order: 2
+---
+
+# Dev compose
+
+Walkthrough of the committed [`docker-compose.yml`](https://github.com/Pratiyush/translately/blob/master/docker-compose.yml) at the repo root. This stack is what contributors run locally when they work on the backend or webapp — it boots Postgres, Redis, MinIO, Mailpit, and (optionally) Keycloak in one command.
+
+For the production counterpart, jump to [`compose-prod.yml` diff](#compose-prodyml-diff-for-production). For hardening before you expose anything to the internet, read the [hardening checklist](hardening.md) first.
+
+## Quick reference
+
+```bash
+docker compose up -d                          # core services (Postgres, Redis, MinIO, Mailpit)
+docker compose --profile keycloak up -d       # add Keycloak for OIDC testing
+docker compose ps                             # list services + health
+docker compose logs -f <service>              # tail logs
+docker compose down                           # stop; named volumes preserved
+docker compose down -v                        # stop AND wipe all data volumes
+```
+
+| Service | URL | Credentials | Purpose |
+|---|---|---|---|
+| Postgres | `postgres://translately:translately@localhost:5432/translately` | user `translately` / pass `translately` | Primary datastore |
+| Redis | `redis://localhost:6379` | none (dev) | Cache, rate limits, sliding-window counters |
+| MinIO API | `http://localhost:9000` | `translately` / `translately-dev` | S3-compatible object storage |
+| MinIO console | `http://localhost:9001` | `translately` / `translately-dev` | Web UI for inspecting buckets |
+| Mailpit | `http://localhost:8025` (web), `localhost:1025` (SMTP) | no auth | Dev mail sink — catches every outbound email |
+| Keycloak | `http://localhost:8180` | `admin` / `admin` | Optional OIDC IdP (profile: `keycloak`) |
+
+The stack uses Compose project name `translately`, so container names are deterministic (`translately-postgres`, `translately-redis`, etc.) — handy for `docker exec`.
+
+## Service-by-service
+
+### `postgres` — PostgreSQL 16
+
+Image: `postgres:16-alpine`. Container: `translately-postgres`. Port `5432` bound to the host.
+
+Environment:
+
+| Variable | Dev value | Production analogue |
+|---|---|---|
+| `POSTGRES_USER` | `translately` | `POSTGRES_USER` (env-file supplied) |
+| `POSTGRES_PASSWORD` | `translately` | `POSTGRES_PASSWORD` (required, no default) |
+| `POSTGRES_DB` | `translately` | `POSTGRES_DB` |
+
+Volumes:
+
+- `postgres-data:/var/lib/postgresql/data` — named volume; survives `docker compose down`, wiped by `docker compose down -v`.
+- `./infra/postgres/init:/docker-entrypoint-initdb.d:ro` — run-once init SQL. Ships [`01-keycloak-db.sql`](https://github.com/Pratiyush/translately/blob/master/infra/postgres/init/01-keycloak-db.sql), which idempotently creates the auxiliary `keycloak` database when the Keycloak profile is enabled.
+
+Healthcheck: `pg_isready -U translately -d translately`, polled every 5s.
+
+Production changes:
+
+- Use a managed Postgres (AWS RDS, Cloud SQL, Crunchy) or at least TLS + `scram-sha-256` auth. The dev image ships with trust auth for `localhost`.
+- Swap the dev password for a 32-byte random secret (`openssl rand -hex 20`).
+- Scheduled backups + periodic restore drills (quarterly minimum).
+
+### `redis` — Redis 7
+
+Image: `redis:7-alpine`. Container: `translately-redis`. Port `6379` bound to the host.
+
+Command overrides (applied via Compose `command:`):
+
+- `--appendonly yes` — enables AOF persistence so cache state survives restart.
+- `--maxmemory 256mb` — dev cap; production is `512mb` in `compose-prod.yml`.
+- `--maxmemory-policy allkeys-lru` — evict least-recently-used keys when full.
+
+Volumes: `redis-data:/data` — persists the AOF log.
+
+Healthcheck: `redis-cli ping`.
+
+Production changes:
+
+- Increase `--maxmemory` to match real load (start at 512mb; tune from metrics).
+- Add `--requirepass` and a TLS listener if Redis is network-reachable beyond the Compose network.
+- Consider Redis Sentinel or a managed Redis for HA.
+
+### `minio` + `minio-init` — S3-compatible object storage
+
+**`minio`** (image: `minio/minio:latest`, container: `translately-minio`) runs the server on ports `9000` (API) and `9001` (console).
+
+Environment:
+
+| Variable | Dev value | Production analogue |
+|---|---|---|
+| `MINIO_ROOT_USER` | `translately` | `MINIO_ROOT_USER` (required) |
+| `MINIO_ROOT_PASSWORD` | `translately-dev` | `MINIO_ROOT_PASSWORD` (required) |
+
+Volume: `minio-data:/data`.
+
+Healthcheck: HTTP `GET /minio/health/live`.
+
+**`minio-init`** (image: `minio/mc:latest`, container: `translately-minio-init`) is a one-shot sidecar. It waits for MinIO to become healthy, then uses `mc` to create the buckets the backend expects and marks `translately-cdn` anonymous-readable:
+
+```
+mc mb --ignore-existing local/translately-screenshots
+mc mb --ignore-existing local/translately-cdn
+mc mb --ignore-existing local/translately-imports
+mc anonymous set download local/translately-cdn
+```
+
+Bucket purposes:
+
+- `translately-screenshots` — reviewer screenshot uploads for translation context.
+- `translately-cdn` — published content bundles (public-read so browsers can fetch without signed URLs).
+- `translately-imports` — staged source-file uploads before they're parsed into the TM.
+
+The sidecar has `restart: "no"` and exits `0` after it finishes — `docker compose ps` will show it as `Exited (0)`, which is expected.
+
+Production changes:
+
+- Swap MinIO for the real thing (AWS S3, GCS via S3 interop, Cloudflare R2, Backblaze B2). The backend speaks the S3 API — set `TRANSLATELY_STORAGE_S3_ENDPOINT`, `_ACCESS_KEY`, `_SECRET_KEY`, `_REGION`.
+- Apply lifecycle rules (expire screenshot uploads after N days).
+- If staying on MinIO, enable TLS, swap the root password, and put it behind a reverse proxy.
+- Only the CDN bucket should be anonymous-readable. Keep `-screenshots` and `-imports` private.
+
+### `mailpit` — Dev SMTP sink
+
+Image: `axllent/mailpit:latest`. Container: `translately-mailpit`. Ports `1025` (SMTP) and `8025` (web UI).
+
+Environment:
+
+| Variable | Value | Why |
+|---|---|---|
+| `MP_SMTP_AUTH_ACCEPT_ANY` | `true` | Accept any SMTP credentials — tests don't need real auth. |
+| `MP_SMTP_AUTH_ALLOW_INSECURE` | `true` | Allow plaintext auth; dev only. |
+| `MP_MAX_MESSAGES` | `500` | Ring-buffer cap on stored messages. |
+
+Volume: `mailpit-data:/data`.
+
+Healthcheck: `GET /livez`.
+
+Every outbound email sent by the backend in dev lands in Mailpit — open `http://localhost:8025` to see signup verifications, password resets, webhook failure alerts, etc.
+
+Production changes: **do not** ship Mailpit. Point `TRANSLATELY_MAIL_*` at a real SMTP provider (Amazon SES, Postmark, SendGrid, Mailgun) with auth + TLS + a dedicated sender domain (SPF, DKIM, DMARC).
+
+### `keycloak` — Optional OIDC IdP
+
+Image: `quay.io/keycloak/keycloak:25.0`. Container: `translately-keycloak`. Port `8180` bound to the host (maps to Keycloak's internal `8080`).
+
+Activated only with `docker compose --profile keycloak up -d`. The core stack omits it so laptops aren't burning the extra RAM.
+
+Environment:
+
+| Variable | Value | Notes |
+|---|---|---|
+| `KEYCLOAK_ADMIN` / `_PASSWORD` | `admin` / `admin` | Master realm admin creds (dev only). |
+| `KC_DB` | `postgres` | Reuse the stack's Postgres. |
+| `KC_DB_URL` | `jdbc:postgresql://postgres:5432/keycloak` | The `keycloak` DB is created by [`infra/postgres/init/01-keycloak-db.sql`](https://github.com/Pratiyush/translately/blob/master/infra/postgres/init/01-keycloak-db.sql). |
+| `KC_DB_USERNAME` / `_PASSWORD` | `translately` / `translately` | Shares the app Postgres role. |
+| `KC_HOSTNAME_STRICT` | `false` | Disable strict hostname checks for localhost. |
+| `KC_HTTP_ENABLED` | `true` | HTTP for dev; TLS required in prod. |
+
+Volumes: `./infra/keycloak/realms:/opt/keycloak/data/import:ro` — seed realms/clients for testing (currently a placeholder).
+
+Depends on Postgres being healthy (Keycloak needs its DB up).
+
+Production changes: Keycloak gets its own deployment (not hobbled into a single Compose file). See the Phase 7 Helm chart.
+
+## First-run smoke checks
+
+After `docker compose up -d`, wait ~15 seconds for healthchecks, then:
+
+```bash
+# Everything should be Up (healthy)
+docker compose ps
+
+# Postgres
+docker exec translately-postgres psql -U translately -d translately -c 'SELECT version();'
+
+# Redis
+docker exec translately-redis redis-cli ping   # -> PONG
+
+# MinIO (from the host)
+curl -fsS http://localhost:9000/minio/health/live && echo OK
+
+# Buckets were created by minio-init
+docker exec translately-minio mc ls local/   # (or open http://localhost:9001)
+
+# Mailpit
+curl -fsS http://localhost:8025/livez && echo OK
+
+# Keycloak (only if --profile keycloak)
+curl -fsS http://localhost:8180/realms/master/.well-known/openid-configuration | head -1
+```
+
+If the backend is also running, confirm it connects:
+
+```bash
+./gradlew :backend:app:quarkusDev             # in another terminal
+curl -fsS http://localhost:8080/q/health/ready   # -> {"status":"UP", ...}
+```
+
+`docker compose logs -f postgres redis minio mailpit` is your friend when a healthcheck never flips to `healthy`.
+
+## `compose-prod.yml` diff for production
+
+[`infra/compose-prod.yml`](https://github.com/Pratiyush/translately/blob/master/infra/compose-prod.yml) is the single-host production variant. Same service set plus `backend` and `webapp`, but meaningfully tighter. Key differences:
+
+| Aspect | Dev (`docker-compose.yml`) | Prod (`infra/compose-prod.yml`) |
+|---|---|---|
+| Backend + webapp | Run on the host (`./gradlew quarkusDev`, `pnpm dev`) | Containerised from `ghcr.io/pratiyush/translately-{backend,webapp}:${TRANSLATELY_VERSION}` |
+| Postgres creds | Hardcoded `translately` / `translately` | `${POSTGRES_PASSWORD:?...}` — fails fast if the env-file is missing |
+| MinIO creds | Hardcoded `translately` / `translately-dev` | `${MINIO_ROOT_USER:?...}` / `${MINIO_ROOT_PASSWORD:?...}` |
+| Mailpit | Present | **Absent** — point `TRANSLATELY_MAIL_*` at real SMTP |
+| Keycloak | Behind `--profile keycloak` | **Absent** — deploy separately |
+| MinIO init sidecar | Creates buckets automatically | **Absent** — create buckets once on your real object store |
+| Redis max memory | `256mb` | `512mb` |
+| Backend port binding | n/a (runs on host) | `127.0.0.1:8080:8080` — bind-localhost, reverse-proxy in front |
+| Webapp port binding | n/a (Vite on `:5173`) | `127.0.0.1:8081:8080` — bind-localhost, reverse-proxy in front |
+| Required secrets | None (dev defaults) | `JWT_SECRET`, `CRYPTO_MASTER_KEY`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `SMTP_*` — all `:?required` |
+| Healthchecks | Services only | Backend adds `/q/health/ready` probe |
+| Volumes | Named dev volumes | Same layout; you own the backup policy |
+
+Bring-up:
+
+```bash
+cp infra/.env.prod.example .env.prod
+# edit secrets with `openssl rand -base64 32`
+docker compose -f infra/compose-prod.yml --env-file .env.prod up -d
+```
+
+Read the [hardening checklist](hardening.md) before you expose the stack to the internet, and follow the [runtime profiles](runtime-profiles.md) page for the `%prod` env vars the backend itself needs.
+
+For multi-node / HA / Kubernetes deployments, wait for the [Phase 7 Helm chart](https://github.com/Pratiyush/translately/blob/master/infra/helm/) or roll your own orchestration.
+
+## Teardown and data wipe
+
+```bash
+# Stop services; keep data (DB, object store, AOF, Mailpit buffer)
+docker compose down
+
+# Stop AND wipe named volumes — guaranteed fresh start next `up`
+docker compose down -v
+
+# Remove everything the stack owns (images too)
+docker compose down -v --rmi local
+
+# Just reset Postgres without touching MinIO / Redis
+docker compose rm -sfv postgres
+docker volume rm translately_postgres-data
+docker compose up -d postgres
+```
+
+`docker compose down -v` is the hammer for "my local DB is in a weird state" — it wipes `postgres-data`, `redis-data`, `minio-data`, and `mailpit-data`. The MinIO init sidecar reruns on the next `up` and recreates the buckets.
 
 
 <!-- ===== FILE: self-hosting/hardening.md ===== -->
@@ -3103,5 +3608,223 @@ nav_order: 1
 ## Reporting security issues
 
 See [SECURITY.md](https://github.com/Pratiyush/translately/blob/master/SECURITY.md). Do not file public issues for vulnerabilities — use GitHub Security Advisories or pratiyush1@gmail.com.
+
+
+<!-- ===== FILE: self-hosting/runtime-profiles.md ===== -->
+
+---
+title: Runtime profiles
+parent: Self-hosting
+nav_order: 3
+---
+
+# Runtime profiles
+
+Translately's backend is a Quarkus application. Quarkus ships a built-in profile mechanism — `%dev`, `%test`, `%prod` — that lets a single [`application.yml`](https://github.com/Pratiyush/translately/blob/master/backend/app/src/main/resources/application.yml) carry three sets of config. Understanding which profile is active and what env vars it requires is the difference between a clean boot and a stack trace.
+
+Companion pages: [dev compose](dev-compose.md) for the services those profiles talk to, [hardening checklist](hardening.md) for what to wire on top in production.
+
+## What activates each profile
+
+| Profile | How to activate | When Quarkus picks it |
+|---|---|---|
+| `%dev` | Default for `./gradlew quarkusDev`. Also selected by `-Dquarkus.profile=dev`. | Live-reload dev loop. |
+| `%test` | Auto-activated when `@QuarkusTest` / `@QuarkusIntegrationTest` runs (the JUnit 5 extensions set it before any `@ApplicationScoped` bean wakes up). | Every backend test run — unit, integration, IT, coverage. |
+| `%prod` | Default for packaged artefacts — the fast-jar (`java -jar quarkus-run.jar`), the native binary (`./translately`), and the official images (`ghcr.io/pratiyush/translately-backend:*`). Also selected by `-Dquarkus.profile=prod`. | Every `compose-prod.yml` / Helm / bare-metal deploy. |
+
+No profile = "default" — the top-level config in `application.yml` that applies to all three. The `"%name":` blocks layer on top and **override** default values for that profile only.
+
+Multiple profiles can be active at once (`-Dquarkus.profile=prod,oidc`). Phase 7 introduces a `%oidc` overlay profile for Keycloak-SSO testing; it stacks onto `%prod`.
+
+## Default config (all profiles)
+
+The top-level block in `application.yml` sets values that hold unless a profile overrides them:
+
+- **`translately.crypto.master-key`** — 32-byte base64 key used to envelope-encrypt per-project BYOK secrets. The committed default (`AAECAwQFBg…`, bytes 0x00–0x1F) is a **clearly non-secret dev placeholder**. `%prod` overrides it; see below.
+- **`translately.jwt`** — issuer `translately`, audience `translately-webapp`, access TTL 15m, refresh TTL 30 days.
+- **`mp.jwt.verify.publickey.location`** and **`smallrye.jwt.sign.key.location`** — default to `classpath:/jwt-dev/{public,private}.pem`. Those dev keys ship in the JAR and are **not secrets**. `%prod` overrides with operator-supplied paths.
+- **`quarkus.http`** — port 8080, host `0.0.0.0`, proactive auth on, CORS allowing `http://localhost:5173` and `:5173` (the Vite dev server). CORS tightens when you put the webapp behind the same origin in production (reverse-proxy setup).
+- **`quarkus.datasource.db-kind: postgresql`**, dev-services disabled. Hibernate ORM and Flyway both default to `active: false` — Phase 0 has no entities or migrations yet. Each phase flips these on when it lands real data.
+- **`quarkus.oidc.enabled: false`** — OIDC extension is on the classpath (for Phase 7 Keycloak/SAML) but disabled by default so `smallrye-jwt` cleanly owns `JsonWebToken` production.
+- **`quarkus.security.ldap`** — inert placeholder values so the extension validates at runtime without talking to a real LDAP server. Real wiring ships with Phase 7.
+
+## `%dev` overrides
+
+Activated by `./gradlew :backend:app:quarkusDev`. Assumes the dev Docker Compose stack (Postgres + Redis + MinIO + Mailpit) is running at its default localhost ports — see [dev compose](dev-compose.md).
+
+From `application.yml`:
+
+```yaml
+"%dev":
+  quarkus:
+    log:
+      category:
+        "io.translately":
+          level: DEBUG
+    datasource:
+      username: translately
+      password: translately
+      jdbc:
+        url: jdbc:postgresql://localhost:5432/translately
+```
+
+What this gives you:
+
+- `io.translately.**` logs at `DEBUG` (everything else stays `INFO`).
+- Postgres JDBC pinned at `localhost:5432` with the hardcoded dev creds from `docker-compose.yml`.
+
+**Required env vars in dev:** none. Everything boots against the committed defaults. If you want to add your own AI keys for BYOK testing, configure them through the UI / API — they encrypt with the dev master key and land in Postgres.
+
+## `%test` overrides
+
+Auto-activated when JUnit 5 instantiates a class annotated `@QuarkusTest` or `@QuarkusIntegrationTest`. There are 13+ such classes under `backend/app/src/test/` (see `@QuarkusTest` call sites in the repo).
+
+```yaml
+"%test":
+  quarkus:
+    devservices:
+      enabled: false
+    datasource:
+      devservices:
+        enabled: false
+    s3:
+      devservices:
+        enabled: false
+    keycloak:
+      devservices:
+        enabled: false
+```
+
+Deliberate shape:
+
+- **All Quarkus dev-services disabled.** Phase 0 tests don't need a running database — they exercise the service layer with mocks or in-memory substitutes. Tests that _do_ need Postgres (like the auth IT suite) opt in with `@QuarkusTestResource(PostgresAndMailpitResource::class)` to stand up Testcontainers explicitly. Tests that don't opt in stay fast.
+- **Secrets fall back to the committed dev values.** JWT keypair from `classpath:/jwt-dev/*`, master key from the default placeholder. No env vars needed.
+
+**Required env vars in test:** none. Testcontainers needs Docker running; that's the only external dependency.
+
+## `%prod` overrides
+
+Activated by the packaged artefacts (fast-jar, native binary, official container images) and by `-Dquarkus.profile=prod`. This is the profile you'll actually operate.
+
+```yaml
+"%prod":
+  translately:
+    crypto:
+      master-key: ${TRANSLATELY_CRYPTO_MASTER_KEY}
+  mp:
+    jwt:
+      verify:
+        publickey:
+          location: ${TRANSLATELY_JWT_PUBLIC_KEY_PATH}
+  smallrye:
+    jwt:
+      sign:
+        key:
+          location: ${TRANSLATELY_JWT_PRIVATE_KEY_PATH}
+  quarkus:
+    log:
+      level: INFO
+    datasource:
+      username: ${QUARKUS_DATASOURCE_USERNAME}
+      password: ${QUARKUS_DATASOURCE_PASSWORD}
+      jdbc:
+        url: ${QUARKUS_DATASOURCE_JDBC_URL}
+```
+
+Every `${...}` is a **required** env var. Quarkus config resolution throws on unresolved expressions at boot, so a missing secret = the app fails to start rather than silently reusing a dev placeholder. This is intentional: it's far better to crash than to encrypt real customer data under the committed-to-Git placeholder key.
+
+### Required env vars (`%prod`)
+
+| Env var | Purpose | Example |
+|---|---|---|
+| `TRANSLATELY_CRYPTO_MASTER_KEY` | 32-byte base64 KEK for envelope-encrypting per-project BYOK secrets (AI API keys, PATs). | `openssl rand -base64 32` |
+| `TRANSLATELY_JWT_PUBLIC_KEY_PATH` | Filesystem path (or `classpath:` URL) to the JWT verification public key (PEM). | `/etc/translately/jwt.pub.pem` |
+| `TRANSLATELY_JWT_PRIVATE_KEY_PATH` | Filesystem path (or `classpath:` URL) to the JWT signing private key (PEM). | `/etc/translately/jwt.priv.pem` |
+| `QUARKUS_DATASOURCE_USERNAME` | Postgres role. | `translately_app` |
+| `QUARKUS_DATASOURCE_PASSWORD` | Postgres role password. | (secret) |
+| `QUARKUS_DATASOURCE_JDBC_URL` | Full JDBC URL (host, port, DB, SSL mode). | `jdbc:postgresql://pg.internal:5432/translately?sslmode=require` |
+
+Additional env vars consumed via the backend's service config (set in `infra/compose-prod.yml`, not in the `%prod` block of `application.yml` — they're read by the storage / mail / auth modules directly):
+
+| Env var | Purpose |
+|---|---|
+| `QUARKUS_REDIS_HOSTS` | Redis connection string (e.g. `redis://redis:6379`). |
+| `TRANSLATELY_STORAGE_S3_ENDPOINT` / `_REGION` / `_ACCESS_KEY` / `_SECRET_KEY` | S3-compatible object storage (MinIO, S3, GCS via S3 interop, R2, B2). |
+| `TRANSLATELY_MAIL_HOST` / `_PORT` / `_USERNAME` / `_PASSWORD` / `_FROM` | Real SMTP credentials — **do not** run Mailpit in production. |
+| `TRANSLATELY_AUTH_JWT_SECRET` | Legacy HS256 secret (alongside the RSA keypair paths). |
+
+See [`infra/.env.prod.example`](https://github.com/Pratiyush/translately/blob/master/infra/.env.prod.example) for a copy-paste-ready template.
+
+### Generating the secrets
+
+```bash
+# 32-byte base64 — TRANSLATELY_CRYPTO_MASTER_KEY and TRANSLATELY_AUTH_JWT_SECRET
+openssl rand -base64 32
+
+# Database / MinIO passwords (hex is fine)
+openssl rand -hex 20
+
+# RS256 JWT keypair for TRANSLATELY_JWT_{PRIVATE,PUBLIC}_KEY_PATH
+openssl genrsa -out jwt.priv.pem 2048
+openssl rsa -in jwt.priv.pem -pubout -out jwt.pub.pem
+chmod 600 jwt.priv.pem
+```
+
+Mount the two PEMs into the container (read-only volume) and point the env vars at them.
+
+### Rotation policy
+
+- **`TRANSLATELY_CRYPTO_MASTER_KEY`** is the KEK. Rotating it requires re-encrypting every row that uses envelope encryption (DEKs) — rotation tooling lands with the Phase 3 secrets-rotation ticket. Until then, rotate only during planned downtime with a manual migration.
+- **JWT keypair**: rotate on a schedule (quarterly is a reasonable default). Hot-swap by running two verification keys simultaneously — the `mp.jwt.verify.publickey.location` setting accepts a JWKS URL when you're ready for multi-key rotation.
+- **Database / MinIO / SMTP creds**: whatever your secret manager prescribes.
+
+Never commit any of these. `.env.prod` is `.gitignore`d; the committed `.env.prod.example` has only placeholder values.
+
+## Boot-time log line
+
+Quarkus prints the active profile during startup. A clean prod boot looks roughly like:
+
+```
+INFO  [io.quarkus] (main) translately 0.1.0 on JVM (profile: prod) started in 2.345s.
+INFO  [io.quarkus] (main) Listening on: http://0.0.0.0:8080
+INFO  [io.quarkus] (main) Profile prod activated.
+INFO  [io.quarkus] (main) Installed features: [cdi, flyway, hibernate-orm, …]
+```
+
+If you see `profile: dev` on a production host, something is wrong — check that you booted the fast-jar (`java -jar quarkus-app/quarkus-run.jar`) or passed `-Dquarkus.profile=prod`.
+
+## Native-image build
+
+A GraalVM native-image recipe is committed at [`infra/docker/backend.native.Dockerfile`](https://github.com/Pratiyush/translately/blob/master/infra/docker/backend.native.Dockerfile). It produces a single static binary — smaller image, faster cold start, but a ~5–15 minute build that's memory-hungry.
+
+Build locally:
+
+```bash
+# From the repo root
+docker build -f infra/docker/backend.native.Dockerfile \
+  -t translately-backend:native .
+```
+
+Or via Gradle directly (requires GraalVM 21 with `native-image` on the host):
+
+```bash
+./gradlew :backend:app:build \
+  -Dquarkus.package.type=native \
+  -Dquarkus.native.container-build=false \
+  -x test --no-daemon --stacktrace
+```
+
+The `translately.quarkus-app` Gradle convention at [`buildSrc/src/main/kotlin/translately.quarkus-app.gradle.kts`](https://github.com/Pratiyush/translately/blob/master/buildSrc/src/main/kotlin/translately.quarkus-app.gradle.kts) wires the `io.quarkus` plugin that enables native builds. Library modules use the lighter `translately.quarkus-module` convention and are not runnable on their own.
+
+The published `ghcr.io/pratiyush/translately-backend:native-<version>` image (built via `release.yml` in Phase 1+) is the drop-in replacement for the JVM image; swap the `image:` line in `compose-prod.yml` to adopt it.
+
+> **TODO (doc gap):** the release pipeline in [`release.yml`](https://github.com/Pratiyush/translately/blob/master/.github/workflows/release.yml) currently publishes only the JVM fast-jar image (`infra/docker/backend.Dockerfile`). The `backend.native.Dockerfile` recipe is ready, but automated native-image publication lands with a follow-up ticket. Until then, operators who want the native image build it themselves.
+
+## Troubleshooting quick hits
+
+- **"Failed to resolve expression `${TRANSLATELY_CRYPTO_MASTER_KEY}`"** — you're booting `%prod` without the env var set. Export it (or populate `.env.prod`) and restart.
+- **`psql: FATAL: role "translately" does not exist`** — dev profile is pointed at your prod database. Check `quarkus.profile` and `QUARKUS_DATASOURCE_JDBC_URL`.
+- **Tests fail with "Connection refused" on 5432** — a test opted into `@QuarkusTestResource` but Docker isn't running, so Testcontainers can't start Postgres. Start Docker Desktop / `colima start`.
+- **Logs are too noisy in dev / too quiet in prod** — `quarkus.log.category."io.translately".level` is `DEBUG` in `%dev` and `INFO` in the default (which `%prod` keeps). Override with `QUARKUS_LOG_CATEGORY__IO_TRANSLATELY__LEVEL=TRACE` for a deep dive without editing `application.yml`.
 
 <!-- END: generated content -->
