@@ -61,3 +61,4 @@ If none of the surfaces apply, say so explicitly and the reviewer will re-check 
 - [ ] Commits **GPG-signed** by Pratiyush, no AI co-author trailers
 - [ ] Reviewer has read every changed line (no rubber-stamping)
 - [ ] **Docs updated** per the `## Docs` section above; no doc surface silently skipped
+- [ ] **I have read and agree to the terms of the [Contributor License Agreement](../CLA.md).** (Required on every PR — ticking grants a copyright + patent license on this Contribution; you retain ownership.)
