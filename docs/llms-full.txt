@@ -619,7 +619,7 @@ Writes either `UPDATED` or `STATE_CHANGED` Activity depending on which fields ch
 ## What's NOT here yet
 
 - **Tag resource.** Backend CRUD for tags lands with the webapp PR that needs it.
-- **Search & filter.** Free-text + tag-intersection search is the dedicated FTS path — see [search](../architecture/search.md) (T206 / #47).
+- **Search & filter.** Free-text + tag-intersection search is the dedicated FTS path — see T206 / #47 (the architecture page at `docs/architecture/search.md` lands alongside that PR).
 - **Activity timeline endpoint.** The Activity rows are written but no `GET /keys/{keyId}/activity` is exposed yet; deferred with #46 post-MVP.
 
 ## Changelog
