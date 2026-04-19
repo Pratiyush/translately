@@ -78,16 +78,16 @@ The per-phase signed-tag cadence (one minor per phase) stays unchanged; the `mvp
 
 | ID | Status | Scope | Est | Title |
 |---|---|---|---|---|
-| T201 | [ ] | backend | m | Entities: Key, KeyMeta, Namespace, Tag, Translation, Comment, Activity |
-| T202 | [ ] | backend | m | Flyway `V2__keys_translations_icu.sql` |
-| T203 | [ ] | backend | m | ICU MessageFormat parse + validate via `com.ibm.icu:icu4j`; CLDR plurals |
-| T204 | [ ] | backend | m | Bulk ops via Quartz (create-many, translate-many, delete-many) |
-| T205 | [ ] | backend | s | Activity log with per-field diffs |
-| T206 | [ ] | backend | s | Key search + tag filter (Postgres FTS + trigram) |
-| T207 | [ ] | webapp | l | Translation table UX — sticky key col, language cols, CodeMirror 6 ICU, keyboard nav, autosave |
-| T208 | [ ] | webapp | m | Key create/edit/delete; namespaces; tags |
-| T209 | [ ] | webapp | s | Activity log panel (per-key timeline) |
-| T210 | [ ] | infra | xs | Tag `v0.2.0` GPG-signed |
+| T201 | [x] | backend | m | Entities: Key, KeyMeta, Namespace, Tag, Translation, Comment, Activity |
+| T202 | [x] | backend | m | Flyway `V3__keys_translations_icu.sql` (renamed — V2 was taken) |
+| T203 | [x] | backend | m | ICU MessageFormat parse + validate via `com.ibm.icu:icu4j`; CLDR plurals |
+| T204 | [→] | backend | m | Bulk ops via Quartz (create-many, translate-many, delete-many) — moved to Phase 4 (AI batch reuse) |
+| T205 | [→] | backend | s | Activity log with per-field diffs — moved to Phase 7 (audit pairing) |
+| T206 | [x] | backend | s | Key search + tag filter (Postgres FTS + trigram) |
+| T207 | [x] | webapp | l | Translation table UX — sticky key col, autosave; CodeMirror 6 + keyboard-grid nav deferred to post-v0.2.0 polish |
+| T208 | [x] | webapp | m | Key create/edit/delete; namespaces; tags |
+| T209 | [→] | webapp | s | Activity log panel (per-key timeline) — moved to Phase 7 (with T205) |
+| T210 | [x] | infra | xs | Tag `v0.2.0` GPG-signed |
 
 ---
 
