@@ -1050,6 +1050,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 - [Authentication](auth.md) — JWT vs. OIDC vs. LDAP, token formats, refresh rotation.
 - [Authorization](authorization.md) — scopes, roles, `@RequiresScope`, per-resource permissions.
 - [Crypto](crypto.md) — envelope encryption for BYOK secrets, key rotation, at-rest protections.
+- [Search](search.md) — Postgres FTS (`tsvector` + `pg_trgm`) over keys and translations; no Elasticsearch in v1.
 - [Webapp shell](webapp.md) — route tree, state stores, TanStack Query boundaries.
 - [CI pipelines](ci.md) — the six GitHub Actions workflows, branch-protection gates, and how tagged releases become signed images.
 - [ICU validation](icu-validation.md) — MessageFormat parse/validate contract, what's checked and not checked, consumers.
@@ -1750,7 +1751,7 @@ nav_order: 2
 
 # Data model
 
-Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under [`backend/data/src/main/resources/db/migration/`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/). This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
+Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under `backend/data/src/main/resources/db/migration/`. This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
 
 Introduced by: [T101](https://github.com/Pratiyush/translately/issues/129) · First migration: `V1__auth_and_orgs.sql`.
 
@@ -1763,7 +1764,7 @@ Every durable entity carries **two** identifiers:
 
 **Why both.** Using a bigserial for FKs keeps indexes tiny and joins fast; exposing ULIDs on the wire avoids leaking row counts, dodges integer-enumeration attacks, and lets callers sort by ID as a coarse creation-time sort.
 
-Generation lives in [`io.translately.data.Ulid`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/kotlin/io/translately/data/Ulid.kt); a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
+Generation lives in `io.translately.data.Ulid`; a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
 
 ## Conventions
 
@@ -1910,7 +1911,7 @@ Anything referenced via `FOREIGN KEY … ON DELETE CASCADE` hard-deletes automat
 
 ## V1 migration story
 
-[`V1__auth_and_orgs.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V1__auth_and_orgs.sql) is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
+`V1__auth_and_orgs.sql` is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
 
 ### Creation order
 
@@ -1999,7 +2000,18 @@ Hot-path indexes added in V3:
 - `idx_translations_key`, `idx_translations_state` — per-key fan-out + state filter.
 - `idx_key_activity_key`, `idx_key_activity_created` — the per-key timeline renders newest-first.
 
-The state-machine rationale lives in [ADR 0002](decisions/0002-translation-state-machine.md). The FTS + trigram index on `key_name` and `translations.value` is a separate concern wired in T206 (#47), not here.
+The state-machine rationale lives in [ADR 0002](decisions/0002-translation-state-machine.md).
+
+### V4 — search index layer
+
+`V4__keys_fts_trigram.sql` layers the search infrastructure on top of V3. It's index-only — no new tables, no data model change:
+
+- Enables `CREATE EXTENSION pg_trgm` (ships with Postgres 16 core).
+- Adds a generated `keys.search_vector` column of type `tsvector`. Populated from `key_name` (both as-is and with `[._-]+` runs replaced by spaces so identifier-style names tokenise segment-by-segment) plus `description`. `GENERATED ALWAYS ... STORED` keeps it in lock-step with its source columns without a trigger.
+- `idx_keys_search_vector` — GIN index on the generated vector, powers the primary FTS path.
+- `idx_translations_value_trgm` — GIN index with `gin_trgm_ops` on `translations.value`, powers the trigram fallback for fuzzy substring search over translation bodies.
+
+The `'simple'` text-search configuration gives up English-aware stemming on purpose — Translately is multilingual and callers search for identifier-like strings where stemming loses precision. A future migration can introduce a per-column language-specific configuration if the UX calls for it. See [ADR 0003](decisions/0003-postgres-fts-over-elasticsearch.md) and the [search architecture page](search.md) for the full rationale.
 
 ## Future migrations
 
@@ -2162,6 +2174,73 @@ Rejection uses the existing DRAFT transition (rejecting sends the cell back to D
 - [ADR index](README.md)
 
 
+<!-- ===== FILE: architecture/decisions/0003-postgres-fts-over-elasticsearch.md ===== -->
+
+---
+title: 0003 — Postgres FTS over Elasticsearch for v1
+parent: ADRs
+grand_parent: Architecture
+nav_order: 3
+---
+
+# 0003 — Postgres FTS over Elasticsearch for v1
+
+- **Status:** Accepted
+- **Date:** 2026-04-19
+- **Deciders:** Pratiyush
+- **Context link:** <https://github.com/Pratiyush/translately/issues/47>
+
+## Context and problem statement
+
+Phase 2 ships key search — the UI needs to query across `keys.key_name`, `keys.description`, and translated strings in `translations.value`, combined with filters for namespace, tags, and lifecycle state. The Phase-2 corpus is dozens-to-thousands of keys per project, optionally filtered to a single namespace. Searching is a hot path: the translator clicks into a project and the filter box is the first thing they touch.
+
+Translately is meant to be self-hosted. Every added infrastructure dependency — a separate service, its RAM, its index-sync job, its upgrade cadence, its failure mode — is a tax on the operator. The question: do we lean on Postgres's built-in full-text search, or wire Elasticsearch / OpenSearch / Meilisearch as a secondary read-model from day one?
+
+## Decision drivers
+
+- Self-hosters run `docker compose up -d` and get a working stack. Every extra service widens the blast radius of that command.
+- Phase-2 scale is measured in thousands of keys per project, not millions.
+- We already have Postgres 16 in the stack; `tsvector`, GIN indexing, and `pg_trgm` ship in core with no licensing or install overhead.
+- Schema evolution on a generated column is cheap; ripping out a secondary index is not.
+- The search UX (`T207`) needs: exact-ish matching on key names, fuzzy substring matching on translations, filter composition (namespace · tags · state), ranking, pagination. All of this is within Postgres's native capabilities.
+- MIT-only dependency policy — Elasticsearch's licensing split (Elastic v2 / SSPL) would force us onto OpenSearch, another integration surface.
+
+## Considered options
+
+1. **Postgres FTS (`tsvector`) + `pg_trgm`** — generated `tsvector` column on `keys`, trigram GIN on `translations.value`. Zero new infra.
+2. **Elasticsearch / OpenSearch as primary search backend** — write-through index; Postgres remains system of record.
+3. **Meilisearch** — lightweight, simpler than Elasticsearch; still a separate service with its own lifecycle.
+4. **Trigram-only (no `tsvector`)** — skip FTS, rely on `pg_trgm` substring search for everything.
+
+## Decision outcome
+
+**Chosen option: Option 1 — Postgres FTS + `pg_trgm`.** The Phase-2 corpus is tiny by any search backend's standards, Postgres already sits on the critical path, and the generated-column approach keeps the FTS artefact in lock-step with `key_name` / `description` without triggers or application-side bookkeeping. Trigram on `translations.value` is the fuzzy-match fallback when FTS returns no hits.
+
+If a deployment later outgrows this — tens of millions of keys, complex language-specific stemming, per-field scoring profiles — Elasticsearch / Meilisearch can land as a read-model in a Phase-8+ optimisation. The service-layer interface (`KeySearchService.search(...)` returning `KeySearchHit`) hides the storage choice, so swapping is a local concern.
+
+### Consequences
+
+- **Good:** one fewer service for self-hosters; no index-sync job; transactional consistency between writes and search results by construction; no licensing carve-outs; Postgres upgrades carry search forward.
+- **Neutral:** search quality is "good enough, not great" — no per-language stemming, no typo tolerance beyond trigram similarity, no phrase proximity scoring.
+- **Bad:** doesn't scale to very large corpora (millions of translation rows with frequent updates). Mitigated by the Phase-8+ escape hatch above.
+- **Bad:** the `'simple'` text-search configuration gives up English-aware stemming. We accept this in exchange for uniform behaviour across every language a translator works in. See the [search architecture page](../search.md) for the full rationale.
+
+### Implementation notes
+
+- Touched modules: `backend/data` (V4 migration), `backend/service/keys` (new `KeySearchService`), `backend/app` (integration test).
+- Migration: forward-only. `V4__keys_fts_trigram.sql` adds the generated column + indexes; no data backfill needed (`GENERATED ALWAYS` populates on insert).
+- Rollback: drop the generated column + the two indexes. The extension can stay; it's cheap.
+- Future: a per-language `tsvector` on `translations` can land in a later migration without touching V4.
+
+## Links
+
+- PR: <https://github.com/Pratiyush/translately/pulls?q=T206>
+- Migration source: `V4__keys_fts_trigram.sql`
+- Service source: `KeySearchService.kt`
+- Architecture page: [Search](../search.md)
+- [ADR index](README.md)
+
+
 <!-- ===== FILE: architecture/decisions/README.md ===== -->
 
 ---
@@ -2184,6 +2263,7 @@ Format: [MADR 3.0](https://adr.github.io/madr/) (Markdown Any Decision Record). 
 |---|---|---|---|
 | [0001](0001-argon2id-password-hashing.md) | Argon2id for password and token hashing | Accepted | 2026-04-18 |
 | [0002](0002-translation-state-machine.md) | Translation state machine (5 states) | Accepted | 2026-04-19 |
+| [0003](0003-postgres-fts-over-elasticsearch.md) | Postgres FTS over Elasticsearch for v1 | Accepted | 2026-04-19 |
 
 ## Numbering
 
@@ -2616,6 +2696,108 @@ Rarely. Today's chain is three links — keeping it small matters because every 
 3. If it really must be a filter, what priority relative to the existing three?
 
 A new filter ships with a failing test that proves order (it must run before / after an existing one) and a line in this document.
+
+
+<!-- ===== FILE: architecture/search.md ===== -->
+
+---
+title: Search
+parent: Architecture
+nav_order: 8
+---
+
+# Search
+
+Translately searches keys and translations with Postgres's built-in full-text + trigram indexes — no Elasticsearch in v1. The steering doc ([`.kiro/steering/architecture.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/architecture.md)) declares the "no Elasticsearch" rule; this page records the how and why.
+
+Introduced by: [T206](https://github.com/Pratiyush/translately/issues/47) · First migration: `V4__keys_fts_trigram.sql`.
+
+## Why Postgres, not Elasticsearch
+
+Phase 2's search UX — a filter box over keys, optional tag / namespace / state chips, a few dozen results — is a cheap problem. Postgres 16 ships `tsvector` + GIN + `pg_trgm` in core; no separate service to boot, no secondary index to sync, no split-brain failure mode, no extra host or RAM to allocate. Self-hosters get search for free.
+
+The escape hatch is live: if a deployment grows past a corpus Postgres handles gracefully (tens of millions of keys, complex multi-language stemming), wiring Elasticsearch or Meilisearch as a read-model is a Phase-8+ optimisation, not a v1 constraint.
+
+## The index layout
+
+`V4__keys_fts_trigram.sql` adds three artefacts on top of V3:
+
+1. **`CREATE EXTENSION IF NOT EXISTS pg_trgm;`** — idempotent, ships with Postgres 16 core.
+2. **`keys.search_vector`** — a generated `tsvector` column.
+   ```sql
+   ALTER TABLE keys
+       ADD COLUMN search_vector tsvector
+           GENERATED ALWAYS AS (
+               to_tsvector(
+                   'simple',
+                   COALESCE(key_name, '') || ' ' ||
+                   regexp_replace(COALESCE(key_name, ''), '[._-]+', ' ', 'g') || ' ' ||
+                   COALESCE(description, '')
+               )
+           ) STORED;
+   CREATE INDEX idx_keys_search_vector ON keys USING gin (search_vector);
+   ```
+   The `GENERATED ALWAYS ... STORED` shape keeps the vector in lock-step with `key_name` / `description` without a trigger or app-side bookkeeping. `key_name` is also included with `[._-]+` runs replaced by spaces so identifier-style names like `settings.save.button` produce the lexemes `settings`, `save`, `button` instead of being swallowed by the default parser's `host`-token rule.
+3. **`translations.value` trigram GIN** —
+   ```sql
+   CREATE INDEX idx_translations_value_trgm
+       ON translations USING gin (value gin_trgm_ops);
+   ```
+   Covers `ILIKE` and the `%` similarity operator for fuzzy substring matches over translated text.
+
+## The text-search configuration: `simple` vs `english`
+
+Every `to_tsvector(...)` call picks a configuration. V4 uses `'simple'` — no stemming, no language-specific stopwords.
+
+Rationale:
+
+- Translately is multilingual by design. A single configuration must work identically for `en`, `de`, `ja`, `fr`. An `english` config would stem "running" → "run" but leave German strings alone, biasing ranking against non-English corpora.
+- Callers search for identifier-like strings — `login.button`, `settings.save.primary` — where stemming loses precision and merges unrelated tokens.
+- `simple` is cheap and deterministic; upgrade paths stay open.
+
+A future migration can introduce a per-column language-specific configuration (e.g. on a `translations.lang_config` generated column keyed off `language_tag`) if the UX calls for it. The generated-column approach keeps that change contained to a single `ALTER`.
+
+## Query composition
+
+`io.translately.service.keys.KeySearchService` composes the WHERE clauses from a `KeySearchQuery`. The primary path is FTS on the key side; when FTS finds no hits and a query string was supplied, the service falls through to a trigram similarity match on `translations.value`.
+
+```mermaid
+flowchart TD
+    A[KeySearchQuery] --> B{Project resolves<br/>for caller?}
+    B -- no --> Z[NOT_FOUND]
+    B -- yes --> C[Compose filters<br/>namespace · tags · state]
+    C --> D{Free-text query?}
+    D -- no --> E[ORDER BY updated_at]
+    D -- yes --> F[FTS on keys.search_vector]
+    F -- hits > 0 --> G[ts_rank order]
+    F -- hits = 0 --> H[Trigram % on translations.value]
+    H --> I[similarity order]
+```
+
+Filter rules:
+
+- **Namespace** — single `namespace_id` equality; URL-safe kebab slug in, internal id at the boundary.
+- **Tag intersection** — `key_tags` join with `HAVING COUNT(DISTINCT tag_id) = :required`, so every requested tag must be present.
+- **State** — equality on `keys.state`; uses `idx_keys_state`.
+- **Pagination** — `LIMIT :lim OFFSET :off`; stable order via the composite `(rank DESC, id ASC)` or `(updated_at DESC, id ASC)`.
+
+## Ranking
+
+- **FTS hits** return `ts_rank(search_vector, plainto_tsquery('simple', :q))` in `matchRank`. Higher is better; ~0.03–0.2 is typical for short corpora.
+- **Trigram hits** use the `<%` word-similarity operator and return `MAX(word_similarity(:q, value))` — `[0, 1]`, higher is better. Word-similarity is better suited than raw `similarity()` for the "query appears as a word inside a longer translation body" shape the UI typically wants.
+- **No-query browses** return `matchRank = 0f`.
+
+A single `KeySearchHit` carries the entity + its rank so the API layer can expose the score if the UX wants to surface it.
+
+## Membership gating
+
+`search()` accepts a `callerExternalId` and requires org membership on the project. Non-members see `OrgException.NotFound("Project")` — the same shape as an unknown project, so the server never leaks project existence. Scope enforcement (e.g. `keys.read`) stays at the JAX-RS resource layer.
+
+## Bench + smoke
+
+The integration test `backend/app/src/test/kotlin/io/translately/app/keys/KeySearchServiceIT.kt` seeds 10 keys / 3 tags / 7 translations and exercises every filter combination against a real Postgres container. No Postgres features are themselves tested — the goal is query composition, not PG correctness.
+
+See also: [ADR 0003 — Postgres FTS over Elasticsearch for v1](decisions/0003-postgres-fts-over-elasticsearch.md).
 
 
 <!-- ===== FILE: architecture/webapp.md ===== -->
