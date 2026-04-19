@@ -3156,75 +3156,99 @@ layout: default
 nav_order: 1
 description: >-
   Translately — open-source, MIT-licensed, self-hosted localization and
-  translation management. Bring-your-own-key AI, no paywalled premium tier.
+  translation management. Keys, translations, ICU validation, i18next
+  JSON import/export shipping in v0.3.0.
 permalink: /
 ---
 
 # Translately
 {: .fs-9 }
 
-Open-source localization & translation management. Self-hosted, MIT, zero paywalled tier. Bring-your-own-key AI.
+**The open-source, self-hosted translation management platform for teams that ship in more than one language.** MIT. Every feature free. Keys, translations, ICU validation, JSON import/export shipping today. Bring-your-own-key AI arrives in Phase 4 — the platform runs end-to-end without it.
 {: .fs-5 .fw-300 }
 
-[Download docs (ZIP)](downloads/translately-docs.zip){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[LLM corpus](llms-full.txt){: .btn .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[GitHub](https://github.com/Pratiyush/translately){: .btn .fs-5 .mb-4 .mb-md-0 }
+[Quickstart](quickstart/){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[API reference]({{ '/api/' | relative_url }}){: .btn .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[GitHub](https://github.com/Pratiyush/translately){: .btn .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[LLM corpus](llms-full.txt){: .btn .fs-5 .mb-4 .mb-md-0 }
+
+---
+
+## What ships today — v0.3.0 (MVP)
+
+Translately v0.3.0 is the **end of the MVP**: Phases 0 through 3 are complete, the platform works end-to-end, every capability listed here is in `master` and running on a signed release.
+
+| Capability | What it means for you |
+|---|---|
+| **Email + password auth** with verified accounts, refresh-token rotation, forgot-password + reset | A translator can sign up, verify email, and sign in — nothing else needed to start. |
+| **Organizations, projects, members** with OWNER / ADMIN / MEMBER roles, last-owner protection, private-org semantics | Multi-tenant from day one. Each org scoped cleanly; non-members can't enumerate private orgs. |
+| **Keys, namespaces, translations** with the full 5-state lifecycle (`EMPTY → DRAFT → TRANSLATED → REVIEW → APPROVED`) | Translators get a sticky-col table with per-cell autosave; admins get namespaces to group keys by feature. |
+| **ICU MessageFormat validation** with CLDR plurals, line + col error reporting | Bad ICU is rejected at save time, not discovered in production. |
+| **Postgres full-text + trigram key search** | Find a key in a 10k-key project without dragging Elasticsearch into your self-host stack. |
+| **i18next JSON import + export** — flat and nested shapes, `KEEP` / `OVERWRITE` / `MERGE` conflict modes, per-row ICU validation | Paste your existing translations in, export them back out. One language per call; multi-language dumps as a scriptable GET. |
+| **API keys + Personal Access Tokens** with scope intersection computed on every request | CI pipelines + scripts authenticate with machine credentials; revocation is instant. |
+| **Light + dark + keyboard-first UI** — WCAG 2.1 AA, Radix Dialog + focus trap, `prefers-reduced-motion` respected | Accessible out of the box. No gated "enterprise a11y" SKU. |
+
+All of it MIT. All of it free. No paywalled tier exists.
+
+## Coming next — v0.4.0 (Phase 4)
+
+- **Bring-your-own-key AI** — per-project OpenAI / Anthropic / Google / Azure / custom endpoints, envelope-encrypted at rest. **The platform runs end-to-end without this configured.**
+- **Machine translation** via the same BYOK layer for non-generative providers.
+- **Translation Memory** over `pgvector` + trigram.
+- **Async Quartz + SSE** for the bulk-import paths that v0.3.0 ships sync.
+
+[Full roadmap](#roadmap) below.
 
 ---
 
 ## Documentation by surface
 
-| Surface | What's in it |
+| Surface | Start here |
 |---|---|
-| [Product]({{ '/product/' | relative_url }}) | Walkthroughs of every user-visible flow — app shell, theming, authentication. |
-| [API reference]({{ '/api/' | relative_url }}) | OpenAPI spec, scopes, error codes, rate limits, versioning, auth endpoints. |
-| [Architecture]({{ '/architecture/' | relative_url }}) | Module map, data model, request lifecycle, multi-tenancy, crypto, ADRs. |
-| [Self-hosting]({{ '/self-hosting/' | relative_url }}) | Hardening checklist, operator guides. |
+| [Quickstart](quickstart/) | 10-minute path from `docker compose up` to your first exported JSON. |
+| [Product]({{ '/product/' | relative_url }}) | Walkthroughs of every user-visible flow — auth, orgs, keys table, editor, import wizard, export modal. |
+| [API reference]({{ '/api/' | relative_url }}) | OpenAPI spec + scope matrix + error catalogue + rate-limit policy + the imports/exports + keys endpoints. |
+| [Architecture]({{ '/architecture/' | relative_url }}) | Module map, data model (V1–V4), request lifecycle, multi-tenancy, crypto, ICU, search, ADRs. |
+| [Self-hosting]({{ '/self-hosting/' | relative_url }}) | Runtime profiles, dev compose, hardening checklist. Everything an operator needs. |
 
-Every PR ships its docs — see [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CLAUDE.md#hard-rules-non-negotiable) and the [contributing rules](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/contributing-rules.md).
+Every PR ships its docs — see [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CLAUDE.md#hard-rules-non-negotiable). Stale docs are worse than missing docs.
 
-## Positioning
+## Why Translately
 
-- **MIT, no gated tier.** Every capability — SSO, SAML, LDAP, Tasks, Branching, Glossaries, Webhooks, CDN, custom storage, granular permissions, audit logs — ships free.
-- **Bring your own AI.** Per-project provider + key, envelope-encrypted at rest. The platform runs end-to-end with **zero AI configured**.
+- **MIT, no gated tier.** SSO, SAML, LDAP, Tasks, Branching, Glossaries, Webhooks, CDN, custom storage, granular permissions, audit logs — all on the free shipping schedule. No "enterprise" upsell.
+- **BYOK is the only AI shape.** Per-project encryption key, envelope-sealed at rest, zero Translately-owned API keys in the loop. If AI is off, every feature except AI suggestions still works.
 - **Quarkus + Kotlin backend.** Fast boot, low memory, native-image friendly for the zero-cost deploy shape.
-- **ICU from day one.** Native ICU MessageFormat parsing, CLDR plurals, CodeMirror 6 editor with inline validation.
-- **Keyboard-first UI.** Light + dark, ⌘K command palette, full keyboard nav, WCAG 2.1 AA.
+- **Translator-first UI.** Sticky column, autosave, ⌘+↵ commit, Escape revert, 5-state badges, inline ICU errors.
 
 ## Roadmap
 
-Twelve-week, seven-phase plan. One signed minor-version tag per phase.
+Seven-phase plan. One signed minor-version tag per phase. **Phases 0–3 (MVP) are complete.**
 
-| Phase | Tag | Theme |
-|---|---|---|
-| 0 | `v0.0.1` | Bootstrap — CI, repo, scaffolding _(shipped)_ |
-| 1 | `v0.1.0` | Auth + Org / Project + webapp shell _(in progress)_ |
-| 2 | `v0.2.0` | Keys + Translations + ICU |
-| 3 | `v0.3.0` | JSON import / export → **first MVP** |
-| 4 | `v0.4.0` | AI / MT (BYOK) + Translation Memory |
-| 5 | `v0.5.0` | Screenshots + JS SDK + in-context editor |
-| 6 | `v0.6.0` | Webhooks + CDN + CLI + glossaries |
-| 7 | `v1.0.0` | Tasks + Branching + SSO / SAML / LDAP + audit |
+| Phase | Tag | Theme | Status |
+|---|---|---|---|
+| 0 | `v0.0.1` | Bootstrap — CI, repo, scaffolding | ✅ shipped 2026-04-17 |
+| 1 | `v0.1.0` | Auth + Org / Project + webapp shell | ✅ shipped 2026-04-18 |
+| 2 | `v0.2.0` | Keys + Translations + ICU | ✅ shipped 2026-04-19 |
+| 3 | `v0.3.0` | JSON import / export · **MVP** | ✅ shipped 2026-04-19 |
+| 4 | `v0.4.0` | BYOK AI + MT + Translation Memory | next |
+| 5 | `v0.5.0` | Screenshots + JS SDK + in-context editor | planned |
+| 6 | `v0.6.0` | Webhooks + CDN + CLI + glossaries | planned |
+| 7 | `v1.0.0` | Tasks + Branching + SSO / SAML / LDAP + audit | planned |
 
-See the [CHANGELOG](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md) for what's landed.
-
-## Quickstart (local dev)
-
-```bash
-git clone https://github.com/Pratiyush/translately
-cd translately
-docker compose up -d              # Postgres 16 + Redis 7 + MinIO + Mailpit
-./gradlew :backend:app:quarkusDev # backend at :8080
-pnpm --filter webapp dev          # webapp at :5173
-```
-
-Self-hosters: start with the [hardening checklist]({{ '/self-hosting/hardening/' | relative_url }}) before exposing to the internet.
+See the [CHANGELOG](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md) for per-PR detail and [RELEASE-NOTES](https://github.com/Pratiyush/translately/blob/master/RELEASE-NOTES.md) for the long-form narratives.
 
 ## Download
 
 - [Full docs bundle (ZIP)](downloads/translately-docs.zip) — every page under `docs/`, deterministic snapshot of the latest `master`.
 - [LLM corpus (single file)](llms-full.txt) — every `.md` concatenated with file-boundary markers, per [llmstxt.org](https://llmstxt.org). For Claude, Cursor, in-house assistants.
 - [Link index](llms.txt) — the short llms.txt discovery file.
+- Container images: `ghcr.io/pratiyush/translately-backend:v0.3.0` + `ghcr.io/pratiyush/translately-webapp:v0.3.0` (published by `release.yml` on every signed tag).
+
+## License
+
+- **Outbound:** [MIT](https://github.com/Pratiyush/translately/blob/master/LICENSE). Use it, fork it, ship it, sell it — no strings.
+- **Inbound:** [Contributor License Agreement](https://github.com/Pratiyush/translately/blob/master/CLA.md) (Apache-ICLA-adapted, copyright-license form — contributor retains ownership). Every PR carries a ticked CLA checkbox.
 
 
 <!-- ===== FILE: product/README.md ===== -->
@@ -4257,6 +4281,221 @@ None dedicated yet. The toggle is reachable via Tab/Shift+Tab. A `⌘K`-discover
 First introduced in [Unreleased](https://github.com/Pratiyush/translately/blob/master/CHANGELOG.md) (Phase 1). Ships with `v0.1.0`.
 
 
+<!-- ===== FILE: quickstart.md ===== -->
+
+---
+title: Quickstart
+layout: default
+nav_order: 2
+permalink: /quickstart/
+description: >-
+  Ten-minute path from `docker compose up` to your first exported i18next
+  JSON. Covers every Translately flow that shipped in v0.3.0.
+---
+
+# Quickstart — zero to first export in 10 minutes
+{: .no_toc }
+
+Everything below runs on a laptop. No cloud account, no API key, no paid tier. When you finish, you'll have a running Translately, a verified user, an organization, a project, a handful of keys with translations, and a downloaded `en.json` + `de.json`.
+
+1. TOC
+{: toc }
+
+---
+
+## What you need
+
+- **Docker** (Desktop on macOS/Windows, or `docker` + `docker compose` on Linux). The stack brings up Postgres, Redis, MinIO, and Mailpit.
+- **Java 21** + **Node 20** + **pnpm 9** if you're running the backend and webapp from source. Skip those if you use the packaged images instead — see [Skip the build](#skip-the-build) below.
+- **10 minutes** of hands-on time. Builds run in the background.
+
+---
+
+## 1. Clone and bring up the stack
+
+```bash
+git clone https://github.com/Pratiyush/translately
+cd translately
+docker compose up -d
+```
+
+You should see four healthy services:
+
+```bash
+docker compose ps
+# NAME               IMAGE                    STATUS (healthy)
+# translately-pg     postgres:16-alpine       Up
+# translately-redis  redis:7-alpine           Up
+# translately-minio  minio/minio              Up
+# translately-mail   axllent/mailpit          Up
+```
+
+Full walkthrough of what each service does and how to swap credentials is in [Self-hosting → Dev compose]({{ '/self-hosting/dev-compose/' | relative_url }}).
+
+## 2. Start the backend
+
+```bash
+./gradlew :backend:app:quarkusDev
+```
+
+Flyway applies four migrations on first boot (`V1__auth_and_orgs.sql` through `V4__keys_fts_trigram.sql`); you should see:
+
+```
+INFO  [org.fly.cor.int.lic.VersionPrinter] Flyway OSS 10.x by Redgate
+INFO  [org.fly.cor.int.com.DbMigrate] Successfully applied 4 migrations
+INFO  [io.quarkus] Listening on: http://localhost:8080
+```
+
+Health check:
+
+```bash
+curl -s http://localhost:8080/q/health | jq .
+# { "status": "UP", ... }
+```
+
+API is at `http://localhost:8080/api/v1/*`. OpenAPI schema at `http://localhost:8080/q/openapi`. Dev UI at `http://localhost:8080/q/dev-ui/`.
+
+## 3. Start the webapp
+
+In a second terminal:
+
+```bash
+pnpm --filter webapp install       # one-time
+pnpm --filter webapp dev
+```
+
+Webapp is at **`http://localhost:5173`**. It hits the backend via the Vite dev proxy, so CORS is already configured.
+
+## 4. Sign up + verify email
+
+1. Open `http://localhost:5173` → you'll be redirected to `/signin`.
+2. Click **Create an account** → fill in name, email (anything — it's a dev inbox), password (12+ chars).
+3. Check [Mailpit](http://localhost:8025). A verification email is waiting. Click the link.
+4. You're back on `/signin`. Enter the credentials you just set.
+
+Alternative for reviewers: click **Seed dev user** on the sign-in page. Only present in DEV builds; stamps a verified user straight into `localStorage` without needing mail.
+
+More detail: [Product → Authentication]({{ '/product/auth/' | relative_url }}).
+
+## 5. Create an organization + project
+
+First-time users land on `/orgs` with an empty state.
+
+1. Click **Create organization** → pick a display name (e.g. "Acme Corp"). The slug (`acme`) is auto-derived.
+2. You're taken to `/orgs/acme`. Click **Create project** on the Projects tab.
+3. Name it "Web app", set `baseLanguageTag` to `en`. Slug auto-derives to `web-app`.
+
+The project detail page opens at `/orgs/acme/projects/web-app`. Three tabs: Keys, Namespaces, Settings.
+
+More detail: [Product → Organizations and projects]({{ '/product/organizations-and-projects/' | relative_url }}).
+
+## 6. Import your first translations
+
+New projects ship with one namespace (`default`). Skip creating more unless you want to group keys by feature.
+
+1. On the **Keys** tab, click **Import**.
+2. Paste this i18next JSON payload:
+
+    ```json
+    {
+      "nav.signIn": "Sign in",
+      "nav.signOut": "Sign out",
+      "welcome.title": "Welcome back, {name}",
+      "welcome.body": "You have {count, plural, one {# new message} other {# new messages}}."
+    }
+    ```
+
+3. Keep defaults: language `en`, namespace `default`, mode `Merge`.
+4. Click **Run import**.
+
+Result panel shows `Imported 4 — 4 created, 0 updated, 0 skipped, 0 failed`. Close the dialog; the four keys now render in the table with state badge **New**.
+
+The ICU expression in `welcome.body` passes validation because it declares an `other` branch for the `plural` argument. If you had written `{count, plural, one {# message}}`, the import would have landed that row in `errors[]` with code `INVALID_ICU_TEMPLATE` and kept the other three clean rows. Try it.
+
+More detail: [Product → Imports and exports]({{ '/product/imports-and-exports/' | relative_url }}).
+
+## 7. Translate a cell
+
+Click into any value in the Translation column. Edit it. Blur (Tab out or click elsewhere) or press **⌘↵** (macOS) / **Ctrl↵** (Win/Linux) to save. The state badge flips from **Empty** → **Draft**.
+
+Inline errors show under the textarea if the ICU fails to parse. Press **Escape** to revert to the server value.
+
+## 8. Export back out
+
+Click **Export** on the Keys tab.
+
+1. Language: `en`. Shape: `FLAT`. Leave namespace + tags + minState blank.
+2. Click **Download**. Browser saves `web-app-en-flat.json`:
+
+    ```json
+    {
+      "nav.signIn": "Sign in",
+      "nav.signOut": "Sign out",
+      "welcome.title": "Welcome back, {name}",
+      "welcome.body": "You have {count, plural, one {# new message} other {# new messages}}."
+    }
+    ```
+
+Switch shape to `NESTED` for:
+
+```json
+{
+  "nav": { "signIn": "Sign in", "signOut": "Sign out" },
+  "welcome": { "title": "Welcome back, {name}", "body": "..." }
+}
+```
+
+Both shapes round-trip cleanly — you can import the exported file back in without any information loss.
+
+## 9. Where the data lives
+
+- Postgres (`translately-pg`) holds every table — users, orgs, projects, namespaces, keys, translations, activity.
+- Flyway migrations are in [`backend/data/src/main/resources/db/migration/`](https://github.com/Pratiyush/translately/tree/master/backend/data/src/main/resources/db/migration).
+- MinIO holds screenshots once Phase 5 lands. Empty today.
+- Redis caches nothing critical yet — Phase 4+ uses it for rate limits and AI-suggestion memoisation.
+
+Drop the stack (`docker compose down -v` wipes volumes) to reset to a clean slate.
+
+---
+
+## Skip the build
+
+If you don't want to compile anything:
+
+```bash
+docker compose up -d
+# Pull the backend + webapp images
+docker run -d --name translately-backend --network host \
+  ghcr.io/pratiyush/translately-backend:v0.3.0
+docker run -d --name translately-webapp --network host -p 5173:8080 \
+  ghcr.io/pratiyush/translately-webapp:v0.3.0
+```
+
+Images are published automatically on every signed release tag. See [`release.yml`](https://github.com/Pratiyush/translately/blob/master/.github/workflows/release.yml).
+
+---
+
+## Next steps
+
+- **Configure CI**: hook Translately into your repo's build. Create an API key with `imports.write` + `exports.read`, add it to your CI secrets, call `POST /imports/json` on every merge — see [`api/imports-and-exports.md`]({{ '/api/imports-and-exports/' | relative_url }}).
+- **Harden before you expose**: read the [hardening checklist]({{ '/self-hosting/hardening/' | relative_url }}). Generate your own JWT keypair, Argon2 password, crypto master key.
+- **Add an operator**: invite a teammate via the Org → Members tab (role change only — invite-by-email lands with Phase 7 SSO).
+- **Wait for AI**: Phase 4 (v0.4.0) adds bring-your-own-key translation suggestions. The platform works end-to-end without it; AI is additive.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Backend fails on boot with `Flyway migration checksum mismatch` | You rolled back a branch that had a migration. | `docker compose down -v` to wipe; `docker compose up -d`; restart backend. |
+| Import returns `404 Language not found` | Project has target languages configured and you tried to import a different tag. | Either import into one of the configured tags or remove the `ProjectLanguage` row (no UI yet — hit the DB). |
+| Editor shows `INVALID_ICU_TEMPLATE` on a value you think is clean | ICU is picky about `{` / `}` / apostrophes. | Wrap literal braces as `'{{'` / `'}}'`. See [Architecture → ICU validation]({{ '/architecture/icu-validation/' | relative_url }}). |
+| Webapp shows "Couldn't load organizations" on `/orgs` | Backend not running or token expired. | Check `http://localhost:8080/q/health`; sign out + sign back in. |
+
+Full error catalogue: [`api/errors.md`]({{ '/api/errors/' | relative_url }}).
+
+
 <!-- ===== FILE: self-hosting/README.md ===== -->
 
 ---
@@ -4612,7 +4851,7 @@ The top-level block in `application.yml` sets values that hold unless a profile 
 - **`translately.jwt`** — issuer `translately`, audience `translately-webapp`, access TTL 15m, refresh TTL 30 days.
 - **`mp.jwt.verify.publickey.location`** and **`smallrye.jwt.sign.key.location`** — default to `classpath:/jwt-dev/{public,private}.pem`. Those dev keys ship in the JAR and are **not secrets**. `%prod` overrides with operator-supplied paths.
 - **`quarkus.http`** — port 8080, host `0.0.0.0`, proactive auth on, CORS allowing `http://localhost:5173` and `:5173` (the Vite dev server). CORS tightens when you put the webapp behind the same origin in production (reverse-proxy setup).
-- **`quarkus.datasource.db-kind: postgresql`**, dev-services disabled. Hibernate ORM and Flyway both default to `active: false` — Phase 0 has no entities or migrations yet. Each phase flips these on when it lands real data.
+- **`quarkus.datasource.db-kind: postgresql`**, dev-services disabled. Hibernate ORM is active; Flyway runs migrations on boot. As of v0.3.0 the migrations are `V1__auth_and_orgs.sql` (Phase 1), `V2__auth_tokens.sql` (Phase 1), `V3__keys_translations_icu.sql` (Phase 2), and `V4__keys_fts_trigram.sql` (Phase 2 FTS). Phase 4+ migrations add one file each.
 - **`quarkus.oidc.enabled: false`** — OIDC extension is on the classpath (for Phase 7 Keycloak/SAML) but disabled by default so `smallrye-jwt` cleanly owns `JsonWebToken` production.
 - **`quarkus.security.ldap`** — inert placeholder values so the extension validates at runtime without talking to a real LDAP server. Real wiring ships with Phase 7.
 
@@ -4665,7 +4904,7 @@ Auto-activated when JUnit 5 instantiates a class annotated `@QuarkusTest` or `@Q
 
 Deliberate shape:
 
-- **All Quarkus dev-services disabled.** Phase 0 tests don't need a running database — they exercise the service layer with mocks or in-memory substitutes. Tests that _do_ need Postgres (like the auth IT suite) opt in with `@QuarkusTestResource(PostgresAndMailpitResource::class)` to stand up Testcontainers explicitly. Tests that don't opt in stay fast.
+- **All Quarkus dev-services disabled.** Unit tests don't need a running database — they exercise the service layer with mocks or in-memory substitutes. Tests that _do_ need Postgres (auth / keys / namespaces / imports / exports IT suites) opt in with `@QuarkusTestResource(PostgresAndMailpitResource::class)` to stand up Testcontainers explicitly. Tests that don't opt in stay fast.
 - **Secrets fall back to the committed dev values.** JWT keypair from `classpath:/jwt-dev/*`, master key from the default placeholder. No env vars needed.
 
 **Required env vars in test:** none. Testcontainers needs Docker running; that's the only external dependency.
@@ -4742,7 +4981,7 @@ Mount the two PEMs into the container (read-only volume) and point the env vars 
 
 ### Rotation policy
 
-- **`TRANSLATELY_CRYPTO_MASTER_KEY`** is the KEK. Rotating it requires re-encrypting every row that uses envelope encryption (DEKs) — rotation tooling lands with the Phase 3 secrets-rotation ticket. Until then, rotate only during planned downtime with a manual migration.
+- **`TRANSLATELY_CRYPTO_MASTER_KEY`** is the KEK. Rotating it requires re-encrypting every row that uses envelope encryption (DEKs) — automated rotation tooling lands with the Phase 4 secrets-rotation ticket (alongside BYOK AI). Until then, rotate only during planned downtime with a manual migration.
 - **JWT keypair**: rotate on a schedule (quarterly is a reasonable default). Hot-swap by running two verification keys simultaneously — the `mp.jwt.verify.publickey.location` setting accepts a JWKS URL when you're ready for multi-key rotation.
 - **Database / MinIO / SMTP creds**: whatever your secret manager prescribes.
 
@@ -4753,7 +4992,7 @@ Never commit any of these. `.env.prod` is `.gitignore`d; the committed `.env.pro
 Quarkus prints the active profile during startup. A clean prod boot looks roughly like:
 
 ```
-INFO  [io.quarkus] (main) translately 0.1.0 on JVM (profile: prod) started in 2.345s.
+INFO  [io.quarkus] (main) translately 0.3.0 on JVM (profile: prod) started in 2.345s.
 INFO  [io.quarkus] (main) Listening on: http://0.0.0.0:8080
 INFO  [io.quarkus] (main) Profile prod activated.
 INFO  [io.quarkus] (main) Installed features: [cdi, flyway, hibernate-orm, …]

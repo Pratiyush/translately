@@ -30,7 +30,7 @@ The top-level block in `application.yml` sets values that hold unless a profile 
 - **`translately.jwt`** — issuer `translately`, audience `translately-webapp`, access TTL 15m, refresh TTL 30 days.
 - **`mp.jwt.verify.publickey.location`** and **`smallrye.jwt.sign.key.location`** — default to `classpath:/jwt-dev/{public,private}.pem`. Those dev keys ship in the JAR and are **not secrets**. `%prod` overrides with operator-supplied paths.
 - **`quarkus.http`** — port 8080, host `0.0.0.0`, proactive auth on, CORS allowing `http://localhost:5173` and `:5173` (the Vite dev server). CORS tightens when you put the webapp behind the same origin in production (reverse-proxy setup).
-- **`quarkus.datasource.db-kind: postgresql`**, dev-services disabled. Hibernate ORM and Flyway both default to `active: false` — Phase 0 has no entities or migrations yet. Each phase flips these on when it lands real data.
+- **`quarkus.datasource.db-kind: postgresql`**, dev-services disabled. Hibernate ORM is active; Flyway runs migrations on boot. As of v0.3.0 the migrations are `V1__auth_and_orgs.sql` (Phase 1), `V2__auth_tokens.sql` (Phase 1), `V3__keys_translations_icu.sql` (Phase 2), and `V4__keys_fts_trigram.sql` (Phase 2 FTS). Phase 4+ migrations add one file each.
 - **`quarkus.oidc.enabled: false`** — OIDC extension is on the classpath (for Phase 7 Keycloak/SAML) but disabled by default so `smallrye-jwt` cleanly owns `JsonWebToken` production.
 - **`quarkus.security.ldap`** — inert placeholder values so the extension validates at runtime without talking to a real LDAP server. Real wiring ships with Phase 7.
 
@@ -83,7 +83,7 @@ Auto-activated when JUnit 5 instantiates a class annotated `@QuarkusTest` or `@Q
 
 Deliberate shape:
 
-- **All Quarkus dev-services disabled.** Phase 0 tests don't need a running database — they exercise the service layer with mocks or in-memory substitutes. Tests that _do_ need Postgres (like the auth IT suite) opt in with `@QuarkusTestResource(PostgresAndMailpitResource::class)` to stand up Testcontainers explicitly. Tests that don't opt in stay fast.
+- **All Quarkus dev-services disabled.** Unit tests don't need a running database — they exercise the service layer with mocks or in-memory substitutes. Tests that _do_ need Postgres (auth / keys / namespaces / imports / exports IT suites) opt in with `@QuarkusTestResource(PostgresAndMailpitResource::class)` to stand up Testcontainers explicitly. Tests that don't opt in stay fast.
 - **Secrets fall back to the committed dev values.** JWT keypair from `classpath:/jwt-dev/*`, master key from the default placeholder. No env vars needed.
 
 **Required env vars in test:** none. Testcontainers needs Docker running; that's the only external dependency.
@@ -160,7 +160,7 @@ Mount the two PEMs into the container (read-only volume) and point the env vars 
 
 ### Rotation policy
 
-- **`TRANSLATELY_CRYPTO_MASTER_KEY`** is the KEK. Rotating it requires re-encrypting every row that uses envelope encryption (DEKs) — rotation tooling lands with the Phase 3 secrets-rotation ticket. Until then, rotate only during planned downtime with a manual migration.
+- **`TRANSLATELY_CRYPTO_MASTER_KEY`** is the KEK. Rotating it requires re-encrypting every row that uses envelope encryption (DEKs) — automated rotation tooling lands with the Phase 4 secrets-rotation ticket (alongside BYOK AI). Until then, rotate only during planned downtime with a manual migration.
 - **JWT keypair**: rotate on a schedule (quarterly is a reasonable default). Hot-swap by running two verification keys simultaneously — the `mp.jwt.verify.publickey.location` setting accepts a JWKS URL when you're ready for multi-key rotation.
 - **Database / MinIO / SMTP creds**: whatever your secret manager prescribes.
 
@@ -171,7 +171,7 @@ Never commit any of these. `.env.prod` is `.gitignore`d; the committed `.env.pro
 Quarkus prints the active profile during startup. A clean prod boot looks roughly like:
 
 ```
-INFO  [io.quarkus] (main) translately 0.1.0 on JVM (profile: prod) started in 2.345s.
+INFO  [io.quarkus] (main) translately 0.3.0 on JVM (profile: prod) started in 2.345s.
 INFO  [io.quarkus] (main) Listening on: http://0.0.0.0:8080
 INFO  [io.quarkus] (main) Profile prod activated.
 INFO  [io.quarkus] (main) Installed features: [cdi, flyway, hibernate-orm, …]
