@@ -18,7 +18,7 @@ The backend search layer lights up Postgres full-text + trigram behind a single 
 
 ### Data model + migrations (T201 + T202)
 
-Seven new JPA entities (`Namespace`, `Tag`, `Key`, `KeyMeta`, `Translation`, `Comment`, `Activity`) and three enums (`KeyState`, `TranslationState`, `ActivityType`) land in `:backend:data`. Flyway `V3__keys_translations_icu.sql` creates eight tables with matching `CHECK` / `UNIQUE` / `FK ON DELETE CASCADE` constraints. [ADR 0002](https://pratiyush.github.io/translately/architecture/decisions/0002-translation-state-machine.html) documents the 5-state translation lifecycle (`EMPTY / DRAFT / TRANSLATED / REVIEW / APPROVED`) — totally ordered so "approved" downloads filter cleanly. A follow-up V4 migration enables `pg_trgm` and adds a generated `keys.search_vector` tsvector column + GIN indexes for the search service.
+Seven new JPA entities (`Namespace`, `Tag`, `Key`, `KeyMeta`, `Translation`, `Comment`, `Activity`) and three enums (`KeyState`, `TranslationState`, `ActivityType`) land in `:backend:data`. Flyway `V3__keys_translations_icu.sql` creates eight tables with matching `CHECK` / `UNIQUE` / `FK ON DELETE CASCADE` constraints. [ADR 0002](https://pratiyush.github.io/translately/architecture/decisions/0002-translation-state-machine/) documents the 5-state translation lifecycle (`EMPTY / DRAFT / TRANSLATED / REVIEW / APPROVED`) — totally ordered so "approved" downloads filter cleanly. A follow-up V4 migration enables `pg_trgm` and adds a generated `keys.search_vector` tsvector column + GIN indexes for the search service.
 
 ### ICU MessageFormat validator (T203)
 
@@ -30,7 +30,7 @@ Seven new JPA entities (`Namespace`, `Tag`, `Key`, `KeyMeta`, `Translation`, `Co
 
 ### Postgres full-text + trigram search (T206)
 
-`KeySearchService` composes a native-SQL query from a `KeySearchQuery` DTO — filters by namespace, tag intersection, lifecycle state; `ts_rank` surfaces the match score; trigram similarity is the fallback when FTS has no hits. The text-search configuration is deliberately `'simple'` (no language-specific stemming) — [ADR 0003](https://pratiyush.github.io/translately/architecture/decisions/0003-postgres-fts-over-elasticsearch.html) explains why Elasticsearch didn't make the cut for v1.
+`KeySearchService` composes a native-SQL query from a `KeySearchQuery` DTO — filters by namespace, tag intersection, lifecycle state; `ts_rank` surfaces the match score; trigram similarity is the fallback when FTS has no hits. The text-search configuration is deliberately `'simple'` (no language-specific stemming) — [ADR 0003](https://pratiyush.github.io/translately/architecture/decisions/0003-postgres-fts-over-elasticsearch/) explains why Elasticsearch didn't make the cut for v1.
 
 ### Translation table + editor + key/namespace CRUD in the webapp (T207 + T208)
 
@@ -48,10 +48,10 @@ Two new JAX-RS filters plug the credential surface into the authentication pipel
 
 New pages under `docs/`:
 - [`product/keys-and-translations.md`](https://pratiyush.github.io/translately/product/keys-and-translations.html) — walkthrough of the table, editor, and dialogs.
-- [`architecture/icu-validation.md`](https://pratiyush.github.io/translately/architecture/icu-validation.html) — what the validator checks and what it deliberately leaves out.
-- [`architecture/search.md`](https://pratiyush.github.io/translately/architecture/search.html) — FTS vs. trigram composition.
-- [`architecture/decisions/0002-translation-state-machine.md`](https://pratiyush.github.io/translately/architecture/decisions/0002-translation-state-machine.html) and [`0003-postgres-fts-over-elasticsearch.md`](https://pratiyush.github.io/translately/architecture/decisions/0003-postgres-fts-over-elasticsearch.html).
-- [`api/keys-and-namespaces.md`](https://pratiyush.github.io/translately/api/keys-and-namespaces.html) — endpoint reference.
+- [`architecture/icu-validation.md`](https://pratiyush.github.io/translately/architecture/icu-validation/) — what the validator checks and what it deliberately leaves out.
+- [`architecture/search.md`](https://pratiyush.github.io/translately/architecture/search/) — FTS vs. trigram composition.
+- [`architecture/decisions/0002-translation-state-machine.md`](https://pratiyush.github.io/translately/architecture/decisions/0002-translation-state-machine/) and [`0003-postgres-fts-over-elasticsearch.md`](https://pratiyush.github.io/translately/architecture/decisions/0003-postgres-fts-over-elasticsearch/).
+- [`api/keys-and-namespaces.md`](https://pratiyush.github.io/translately/api/keys-and-namespaces/) — endpoint reference.
 - 14 light + dark screenshots committed under `docs/product/screenshots/`, embedded via `<picture>` so the docs site automatically shows the right variant.
 
 ### What's next
