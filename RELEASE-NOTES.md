@@ -4,6 +4,51 @@ Long-form release narratives. For raw diffs and per-PR detail, see [CHANGELOG.md
 
 ---
 
+## v0.3.0 — Phase 3: JSON import/export · **MVP shipped**
+
+**Released:** 2026-04-19
+**Status:** prerelease (MVP complete)
+**Tag:** `v0.3.0` (GPG-signed) · [Compare with v0.2.0](https://github.com/Pratiyush/translately/compare/v0.2.0...v0.3.0)
+
+### The headline
+
+**Translately is now usable end-to-end as a self-hosted localization platform, with zero AI configured.** That was the MVP bar set in Phase 0: sign up, create an organization and a project, add translation keys, write values for a language, ship them back out as i18next JSON. Every piece is MIT. Every "enterprise" feature stays scheduled for its phase — SSO/SAML/LDAP at Phase 7, Tasks + Branching at Phase 7, CLI at Phase 6 — and shipped-to-date pieces remain free.
+
+### i18next JSON import + export (T301 + T302 + T304 + T305)
+
+Two synchronous endpoints on the project scope and the webapp UI that drives them:
+
+- `POST /api/v1/organizations/{orgSlug}/projects/{projectSlug}/imports/json`
+  Accepts flat (`{"nav.signIn":"Sign in"}`) or nested (`{"nav":{"signIn":"Sign in"}}`) i18next JSON, auto-detects shape, upserts one language per call. Conflict modes: `KEEP` (existing wins), `OVERWRITE` (replace every row), `MERGE` (fill blanks only). Per-row ICU validation via the v0.2.0 `IcuValidator` — invalid cells land in the response's `errors[]` array so the UI can surface them without rolling back the clean rows. Response: `{total, created, updated, skipped, failed, errors[]}`.
+- `GET /api/v1/organizations/{orgSlug}/projects/{projectSlug}/exports/json`
+  Downloads one language as either flat or nested JSON. Filters: `languageTag`, `namespaceSlug`, `tags` (AND intersection), `minState` (`EMPTY < DRAFT < TRANSLATED < REVIEW < APPROVED` — pick `APPROVED` for production dumps). `Content-Disposition` ships a suggested filename; `X-Translately-Key-Count` lets the UI render a progress hint.
+
+Shared parser (`JsonTranslationsIO`) handles flat ↔ nested round-trip and emits `JsonShapeError(path, code, message)` with jq-style addressing (e.g. `nav.items` → `UNSUPPORTED_TYPE` for a nested array) so the UI can point at the offending path in the pasted JSON.
+
+Webapp adds **Import** and **Export** buttons to the Keys tab on the project detail route. Import wizard: paste JSON or drop a `.json` file, pick language + namespace + mode, run, review per-row errors inline. Export modal: pick shape + language + optional filters, click Download, browser saves `{projectSlug}-{languageTag}-{shape}.json`.
+
+### What ships deferred to later phases
+
+Four tickets originally scheduled for Phases 2–3 were re-allocated during MVP close-out to keep surgical focus:
+
+- **T204 — bulk ops via Quartz** → Phase 4. Piggybacks on the Quartz infra the AI-batch workflow adds.
+- **T205 — activity-log per-field diffs** → Phase 7. Pairs naturally with the audit log (T706).
+- **T209 — per-key activity panel UI** → Phase 7 (with T205).
+- **T303 — async Quartz + SSE progress streaming** → Phase 4. The sync import/export endpoints in this release cover payloads up to ~10k keys comfortably; the async path becomes necessary when Phase 4 adds bulk AI translation jobs.
+
+### What's next
+
+**v0.4.0 — Phase 4: BYOK AI + MT + Translation Memory.** Per-project encrypted API keys for OpenAI / Anthropic / Google / Azure / custom endpoints; suggest + translate endpoints; MT adapter layer; TM lookup via pgvector + trigram. The entire layer is optional — Translately still works end-to-end without an AI key configured. The bulk-ops and async-job tickets deferred from this phase land alongside the AI batch workflow.
+
+### Operator notes
+
+- Schema migrations on upgrade: V3 (Phase 2 data model) + V4 (FTS + trigram) from v0.2.0 both apply automatically via Flyway. No new migrations in v0.3.0.
+- No new env vars. No new compose services.
+- The import endpoint runs inside a single transaction. Very large payloads (50k+ keys) should wait for T303's async path in v0.4.0 — the current sync call is fine up to ~10k keys per call on commodity hardware.
+- `imports.write` + `exports.read` are the scopes. OWNER / ADMIN have both by default; MEMBER has `imports.write` (translators upload) but not `exports.read` (download gate is an ADMIN concern).
+
+---
+
 ## v0.2.0 — Phase 2: Keys, translations, and ICU
 
 **Released:** 2026-04-19

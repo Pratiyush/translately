@@ -95,12 +95,12 @@ The per-phase signed-tag cadence (one minor per phase) stays unchanged; the `mvp
 
 | ID | Status | Scope | Est | Title |
 |---|---|---|---|---|
-| T301 | [ ] | backend | m | i18next flat + nested JSON import (conflict: keep / overwrite / merge) |
-| T302 | [ ] | backend | m | i18next flat + nested JSON export (filtered by namespace, tag, state) |
-| T303 | [ ] | backend | s | Async via Quartz; `GET /jobs/{id}` status polling + SSE events |
-| T304 | [ ] | webapp | m | Import wizard (upload → preview → conflict resolution → run → status) |
-| T305 | [ ] | webapp | s | Export modal with filters |
-| T306 | [ ] | infra | xs | Tag `v0.3.0` GPG-signed |
+| T301 | [x] | backend | m | i18next flat + nested JSON import (conflict: keep / overwrite / merge) |
+| T302 | [x] | backend | m | i18next flat + nested JSON export (filtered by namespace, tag, state) |
+| T303 | [→] | backend | s | Async via Quartz; `GET /jobs/{id}` status polling + SSE events — moved to Phase 4 (bulk-AI batch workflow) |
+| T304 | [x] | webapp | m | Import wizard (upload → preview → conflict resolution → run → status) |
+| T305 | [x] | webapp | s | Export modal with filters |
+| T306 | [x] | infra | xs | Tag `v0.3.0` GPG-signed — **MVP shipped** |
 
 ---
 

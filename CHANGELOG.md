@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Added
+## [0.3.0] — 2026-04-19 — Phase 3: JSON import/export → MVP shipped
+
+### Added (Phase 3)
 - **i18next JSON import + export — backend and webapp wizard** (T301 + T302 + T304 + T305; closes #52 + #53 + #55 + #56). Two synchronous endpoints under `/api/v1/organizations/{orgSlug}/projects/{projectSlug}`: `POST /imports/json` (i18next flat or nested JSON in, `{total, created, updated, skipped, failed, errors[]}` out) and `GET /exports/json` (shape + language-tag + namespace + tag + min-state filters → JSON file body with `Content-Disposition`). Conflict modes: `KEEP` / `OVERWRITE` / `MERGE`. Per-row ICU validation via the existing `IcuValidator`; invalid cells land in the result's `errors[]` without blocking clean rows. Shared parser — new `JsonTranslationsIO` service — handles flat ↔ nested round-trip and emits `JsonShapeError(path, code, message)` with jq-style addressing for parse failures. Webapp surfaces a four-step import wizard and a single-page export modal mounted on the project detail route, both using RHF-free local state because the wizard's flow is linear and small. Eight new backend integration tests (`ImportResourceIT` 6 + `ExportResourceIT` 4) and 11 parser unit tests (`JsonTranslationsIOTest`). Async + SSE progress streaming remains deferred to T303 (Phase 4). New API ref page [`docs/api/imports-and-exports.md`](docs/api/imports-and-exports.md) and product page [`docs/product/imports-and-exports.md`](docs/product/imports-and-exports.md).
 
 ## [0.2.0] — 2026-04-19 — Phase 2: Keys + Translations + ICU
