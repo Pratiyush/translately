@@ -1,6 +1,6 @@
 package io.translately.service.translations
 
-import io.translately.data.entity.Activity
+import io.translately.data.Ulid
 import io.translately.data.entity.ActivityType
 import io.translately.data.entity.Key
 import io.translately.data.entity.KeyState
@@ -246,13 +246,22 @@ open class TranslationImportService {
         caller: User?,
         type: ActivityType,
     ) {
-        val activity =
-            Activity().apply {
-                this.key = key
-                this.actor = caller
-                this.actionType = type
-            }
-        em.persist(activity)
+        // Native INSERT sidesteps the JPA `String` → JSONB parameter-type
+        // mismatch on `diff_json`. Mirrors `KeyService.writeActivity`; the
+        // Phase 7 audit log (T706) back-fills structured payloads.
+        em
+            .createNativeQuery(
+                """
+                INSERT INTO key_activity
+                    (external_id, key_id, actor_user_id, action_type, diff_json, created_at, updated_at)
+                VALUES
+                    (?1, ?2, ?3, ?4, NULL, NOW(), NOW())
+                """.trimIndent(),
+            ).setParameter(1, Ulid.generate())
+            .setParameter(2, key.id)
+            .setParameter(3, caller?.id)
+            .setParameter(4, type.name)
+            .executeUpdate()
     }
 
     private fun findKey(
