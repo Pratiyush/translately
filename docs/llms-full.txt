@@ -3167,10 +3167,10 @@ permalink: /
 **The open-source, self-hosted translation management platform for teams that ship in more than one language.** MIT. Every feature free. Keys, translations, ICU validation, JSON import/export shipping today. Bring-your-own-key AI arrives in Phase 4 — the platform runs end-to-end without it.
 {: .fs-5 .fw-300 }
 
-[Quickstart](quickstart/){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[Quickstart]({{ '/quickstart/' | relative_url }}){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [API reference]({{ '/api/' | relative_url }}){: .btn .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [GitHub](https://github.com/Pratiyush/translately){: .btn .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[LLM corpus](llms-full.txt){: .btn .fs-5 .mb-4 .mb-md-0 }
+[LLM corpus]({{ '/llms-full.txt' | relative_url }}){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ---
 
@@ -3206,7 +3206,7 @@ All of it MIT. All of it free. No paywalled tier exists.
 
 | Surface | Start here |
 |---|---|
-| [Quickstart](quickstart/) | 10-minute path from `docker compose up` to your first exported JSON. |
+| [Quickstart]({{ '/quickstart/' | relative_url }}) | 10-minute path from `docker compose up` to your first exported JSON. |
 | [Product]({{ '/product/' | relative_url }}) | Walkthroughs of every user-visible flow — auth, orgs, keys table, editor, import wizard, export modal. |
 | [API reference]({{ '/api/' | relative_url }}) | OpenAPI spec + scope matrix + error catalogue + rate-limit policy + the imports/exports + keys endpoints. |
 | [Architecture]({{ '/architecture/' | relative_url }}) | Module map, data model (V1–V4), request lifecycle, multi-tenancy, crypto, ICU, search, ADRs. |
@@ -3240,9 +3240,9 @@ See the [CHANGELOG](https://github.com/Pratiyush/translately/blob/master/CHANGEL
 
 ## Download
 
-- [Full docs bundle (ZIP)](downloads/translately-docs.zip) — every page under `docs/`, deterministic snapshot of the latest `master`.
-- [LLM corpus (single file)](llms-full.txt) — every `.md` concatenated with file-boundary markers, per [llmstxt.org](https://llmstxt.org). For Claude, Cursor, in-house assistants.
-- [Link index](llms.txt) — the short llms.txt discovery file.
+- [Full docs bundle (ZIP)]({{ '/downloads/translately-docs.zip' | relative_url }}) — every page under `docs/`, deterministic snapshot of the latest `master`.
+- [LLM corpus (single file)]({{ '/llms-full.txt' | relative_url }}) — every `.md` concatenated with file-boundary markers, per [llmstxt.org](https://llmstxt.org). For Claude, Cursor, in-house assistants.
+- [Link index]({{ '/llms.txt' | relative_url }}) — the short llms.txt discovery file.
 - Container images: `ghcr.io/pratiyush/translately-backend:v0.3.0` + `ghcr.io/pratiyush/translately-webapp:v0.3.0` (published by `release.yml` on every signed tag).
 
 ## License
