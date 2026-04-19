@@ -2157,7 +2157,7 @@ Rejection uses the existing DRAFT transition (rejecting sends the cell back to D
 ## Links
 
 - PR: <https://github.com/Pratiyush/translately/pulls?q=T201>
-- Entity source: [`Translation.kt`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/kotlin/io/translately/data/entity/Translation.kt)
+- Entity source: `backend/data/src/main/kotlin/io/translately/data/entity/Translation.kt` (filesystem link omitted until the file lands on master)
 - [ADR index](README.md)
 
 
