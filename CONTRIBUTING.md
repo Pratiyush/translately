@@ -85,4 +85,10 @@ This project follows the [Contributor Covenant 2.1](CODE_OF_CONDUCT.md). Be kind
 
 ## License
 
-By contributing, you agree your contributions are licensed under MIT.
+Translately is distributed to end users under the [MIT License](LICENSE). When you submit a pull request you also agree to the Translately **Contributor License Agreement** ([CLA.md](CLA.md)) — a copyright + patent *license* (you retain ownership) that lets the project maintainer relicense or redistribute the combined work.
+
+Signing the CLA is a single checkbox in the pull-request template:
+
+> `[x] I have read and agree to the terms of [CLA.md](CLA.md).`
+
+Tick it on every PR. No external service, no signature file — the ticked checkbox in the PR body is the agreement. Your first PR must also include the checkbox, and every subsequent PR reconfirms. If your employer has IP rights to code you write on their time, make sure they've consented before you tick the box (see CLA §4).
