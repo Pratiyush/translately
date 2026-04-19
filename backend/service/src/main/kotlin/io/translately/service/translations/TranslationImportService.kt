@@ -69,50 +69,71 @@ open class TranslationImportService {
         val langTag = validateLanguageTag(project, request.languageTag)
         val namespace = ensureNamespace(project, request.namespaceSlug, callerExternalId)
         val parsed = parse(request.body)
-
-        val outcomes = mutableListOf<EntryOutcome>()
-        val errors = mutableListOf<ImportError>()
-        var created = 0
-        var updated = 0
-        var skipped = 0
         val caller = findUserOrNull(callerExternalId)
-
-        for (entry in parsed) {
-            val outcome =
-                try {
-                    processEntry(entry, project, namespace, langTag, request.mode, caller)
-                } catch (ex: OrgException.ValidationFailed) {
-                    errors += ImportError(entry.keyName, "VALIDATION_FAILED", ex.message.orEmpty())
-                    continue
-                }
-            outcomes += outcome
-            when (outcome.result) {
-                Resolution.CREATED -> created += 1
-                Resolution.UPDATED -> updated += 1
-                Resolution.SKIPPED -> skipped += 1
-                Resolution.INVALID -> errors += ImportError(entry.keyName, "INVALID_ICU_TEMPLATE", outcome.message.orEmpty())
-            }
-        }
-
+        val ctx =
+            EntryContext(
+                project = project,
+                namespace = namespace,
+                languageTag = langTag,
+                mode = request.mode,
+                caller = caller,
+            )
+        val counts = processAllEntries(parsed, ctx)
         em.flush()
         log.infov(
             "imported {0} entries into project {1} lang={2} (created={3} updated={4} skipped={5} errors={6})",
             parsed.size,
             project.externalId,
             langTag,
-            created,
-            updated,
-            skipped,
-            errors.size,
+            counts.created,
+            counts.updated,
+            counts.skipped,
+            counts.errors.size,
         )
         return ImportResult(
             total = parsed.size,
-            created = created,
-            updated = updated,
-            skipped = skipped,
-            failed = errors.size,
-            errors = errors,
+            created = counts.created,
+            updated = counts.updated,
+            skipped = counts.skipped,
+            failed = counts.errors.size,
+            errors = counts.errors,
         )
+    }
+
+    private data class Counts(
+        var created: Int = 0,
+        var updated: Int = 0,
+        var skipped: Int = 0,
+        val errors: MutableList<ImportError> = mutableListOf(),
+    )
+
+    private fun processAllEntries(
+        entries: List<JsonTranslationsIO.Entry>,
+        ctx: EntryContext,
+    ): Counts {
+        val counts = Counts()
+        for (entry in entries) {
+            val outcome =
+                try {
+                    processEntry(entry, ctx)
+                } catch (ex: OrgException.ValidationFailed) {
+                    counts.errors += ImportError(entry.keyName, "VALIDATION_FAILED", ex.message.orEmpty())
+                    continue
+                }
+            when (outcome.result) {
+                Resolution.CREATED -> counts.created += 1
+                Resolution.UPDATED -> counts.updated += 1
+                Resolution.SKIPPED -> counts.skipped += 1
+                Resolution.INVALID ->
+                    counts.errors +=
+                        ImportError(
+                            keyName = entry.keyName,
+                            code = "INVALID_ICU_TEMPLATE",
+                            message = outcome.message.orEmpty(),
+                        )
+            }
+        }
+        return counts
     }
 
     // ------------------------------------------------------------------
@@ -121,16 +142,12 @@ open class TranslationImportService {
 
     private fun processEntry(
         entry: JsonTranslationsIO.Entry,
-        project: Project,
-        namespace: Namespace,
-        languageTag: String,
-        mode: ConflictMode,
-        caller: User?,
+        ctx: EntryContext,
     ): EntryOutcome {
         // Validate ICU first — reject invalid values outright regardless
         // of conflict mode, so the UI can fix and retry without the DB
         // seeing a half-applied import.
-        val valid = icu.validate(entry.value, Locale.forLanguageTag(languageTag))
+        val valid = icu.validate(entry.value, Locale.forLanguageTag(ctx.languageTag))
         if (!valid.ok) {
             return EntryOutcome(
                 entry = entry,
@@ -139,12 +156,12 @@ open class TranslationImportService {
             )
         }
 
-        val existingKey = findKey(project, entry.keyName)
-        val key = existingKey ?: createKey(project, namespace, entry.keyName, caller)
-        val existingTranslation = existingKey?.let { findTranslation(it, languageTag) }
+        val existingKey = findKey(ctx.project, entry.keyName)
+        val key = existingKey ?: createKey(ctx.project, ctx.namespace, entry.keyName, ctx.caller)
+        val existingTranslation = existingKey?.let { findTranslation(it, ctx.languageTag) }
 
         val action =
-            when (mode) {
+            when (ctx.mode) {
                 ConflictMode.KEEP -> if (existingTranslation == null) Action.WRITE else Action.SKIP
                 ConflictMode.OVERWRITE -> Action.WRITE
                 ConflictMode.MERGE -> {
@@ -159,7 +176,7 @@ open class TranslationImportService {
         return when (action) {
             Action.SKIP -> EntryOutcome(entry = entry, result = Resolution.SKIPPED)
             Action.WRITE -> {
-                writeTranslation(key, languageTag, entry.value, caller)
+                writeTranslation(key, ctx.languageTag, entry.value, ctx.caller)
                 val result = if (existingTranslation == null) Resolution.CREATED else Resolution.UPDATED
                 EntryOutcome(entry = entry, result = result)
             }
@@ -321,7 +338,12 @@ open class TranslationImportService {
                 this.name = slug.replaceFirstChar { it.titlecase() }
             }
         em.persist(ns)
-        log.infov("auto-created namespace {0} for import in project {1} (caller={2})", slug, project.externalId, callerExternalId)
+        log.infov(
+            "auto-created namespace {0} for import in project {1} (caller={2})",
+            slug,
+            project.externalId,
+            callerExternalId,
+        )
         return ns
     }
 
@@ -351,10 +373,12 @@ open class TranslationImportService {
         return tag
     }
 
+    @Suppress("SwallowedException") // Cause preserved via log.debugv(ex, ...) before the rethrow.
     private fun parse(body: String): List<JsonTranslationsIO.Entry> =
         try {
             jsonIo.read(body)
         } catch (ex: JsonShapeException) {
+            log.debugv(ex, "json import shape rejected: path={0} code={1}", ex.error.path, ex.error.code)
             throw OrgException.ValidationFailed(
                 listOf(
                     OrgException.ValidationFailed.FieldError(
@@ -368,6 +392,20 @@ open class TranslationImportService {
     // ------------------------------------------------------------------
     // DTOs
     // ------------------------------------------------------------------
+
+    /**
+     * Per-call context threaded through [processEntry] — keeps the
+     * per-entry method to two params (the entry + the context) so
+     * detekt's `LongParameterList` stays happy while the import-level
+     * invariants remain colocated.
+     */
+    private data class EntryContext(
+        val project: Project,
+        val namespace: Namespace,
+        val languageTag: String,
+        val mode: ConflictMode,
+        val caller: User?,
+    )
 
     enum class ConflictMode { KEEP, OVERWRITE, MERGE }
 

@@ -1,5 +1,6 @@
 package io.translately.service.translations
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -45,11 +46,16 @@ open class JsonTranslationsIO(
         val root =
             try {
                 mapper.readTree(body)
-            } catch (ex: Exception) {
-                throw JsonShapeException(JsonShapeError("$", "INVALID_JSON", ex.message ?: "Invalid JSON"))
+            } catch (ex: JsonProcessingException) {
+                throw JsonShapeException(
+                    JsonShapeError("$", "INVALID_JSON", ex.message ?: "Invalid JSON"),
+                    ex,
+                )
             }
         if (root == null || !root.isObject) {
-            throw JsonShapeException(JsonShapeError("$", "NOT_AN_OBJECT", "Top-level payload must be a JSON object."))
+            throw JsonShapeException(
+                JsonShapeError("$", "NOT_AN_OBJECT", "Top-level payload must be a JSON object."),
+            )
         }
         val out = mutableListOf<Entry>()
         collectEntries(root as ObjectNode, prefix = "", out = out)
@@ -154,4 +160,5 @@ data class JsonShapeError(
 
 class JsonShapeException(
     val error: JsonShapeError,
-) : RuntimeException(error.message)
+    cause: Throwable? = null,
+) : RuntimeException(error.message, cause)

@@ -44,10 +44,14 @@ class ExportResource {
     @Operation(summary = "Export i18next JSON translations for one language tag.")
     @APIResponses(
         APIResponse(responseCode = "200", description = "Export generated. Body is the JSON file."),
-        APIResponse(responseCode = "400", description = "Validation failed (missing language tag, bad shape, bad state)."),
+        APIResponse(
+            responseCode = "400",
+            description = "Validation failed (missing language tag, bad shape, bad state).",
+        ),
         APIResponse(responseCode = "401", description = "Not authenticated."),
         APIResponse(responseCode = "404", description = "Project not found or caller is not a member."),
     )
+    @Suppress("LongParameterList") // JAX-RS @QueryParam wiring requires one param per query arg
     fun exportJson(
         @PathParam("orgSlug") orgSlug: String,
         @PathParam("projectSlug") projectSlug: String,
@@ -58,45 +62,69 @@ class ExportResource {
         @QueryParam("shape") @DefaultValue("FLAT") shape: String,
     ): Response =
         runFlow {
-            val tag =
-                languageTag?.trim().orEmpty().ifEmpty {
-                    throw OrgException.ValidationFailed(
-                        listOf(OrgException.ValidationFailed.FieldError("languageTag", "REQUIRED")),
-                    )
-                }
-            val parsedShape =
-                parseShape(shape)
-                    ?: throw OrgException.ValidationFailed(
-                        listOf(OrgException.ValidationFailed.FieldError("shape", "INVALID")),
-                    )
-            val tagList =
-                tags
-                    ?.split(',')
-                    ?.map(String::trim)
-                    ?.filter(String::isNotEmpty)
-                    .orEmpty()
-            val req =
-                TranslationExportService.ExportJsonRequest(
-                    languageTag = tag,
+            val query =
+                ExportQuery(
+                    languageTag = languageTag,
                     namespaceSlug = namespaceSlug,
-                    tags = tagList,
-                    minStateName = minState,
-                    shape = parsedShape,
+                    tags = tags,
+                    minState = minState,
+                    shape = shape,
                 )
-            val target =
-                TranslationExportService.ExportTarget(
-                    orgSlugOrId = orgSlug,
-                    projectSlugOrId = projectSlug,
-                )
-            val result = service.exportJson(callerIdFrom(jwt), target, req)
-            val filename = "$projectSlug-$tag-${parsedShape.name.lowercase()}.json"
-            Response
-                .ok(result.body)
-                .type(MediaType.APPLICATION_JSON)
-                .header("Content-Disposition", """attachment; filename="$filename"""")
-                .header("X-Translately-Key-Count", result.keyCount.toString())
-                .build()
+            runExport(orgSlug, projectSlug, query)
         }
+
+    private data class ExportQuery(
+        val languageTag: String?,
+        val namespaceSlug: String?,
+        val tags: String?,
+        val minState: String?,
+        val shape: String,
+    )
+
+    private fun runExport(
+        orgSlug: String,
+        projectSlug: String,
+        q: ExportQuery,
+    ): Response {
+        val tag =
+            q.languageTag?.trim().orEmpty().ifEmpty {
+                throw OrgException.ValidationFailed(
+                    listOf(OrgException.ValidationFailed.FieldError("languageTag", "REQUIRED")),
+                )
+            }
+        val parsedShape =
+            parseShape(q.shape)
+                ?: throw OrgException.ValidationFailed(
+                    listOf(OrgException.ValidationFailed.FieldError("shape", "INVALID")),
+                )
+        val tagList =
+            q.tags
+                ?.split(',')
+                ?.map(String::trim)
+                ?.filter(String::isNotEmpty)
+                .orEmpty()
+        val req =
+            TranslationExportService.ExportJsonRequest(
+                languageTag = tag,
+                namespaceSlug = q.namespaceSlug,
+                tags = tagList,
+                minStateName = q.minState,
+                shape = parsedShape,
+            )
+        val target =
+            TranslationExportService.ExportTarget(
+                orgSlugOrId = orgSlug,
+                projectSlugOrId = projectSlug,
+            )
+        val result = service.exportJson(callerIdFrom(jwt), target, req)
+        val filename = "$projectSlug-$tag-${parsedShape.name.lowercase()}.json"
+        return Response
+            .ok(result.body)
+            .type(MediaType.APPLICATION_JSON)
+            .header("Content-Disposition", """attachment; filename="$filename"""")
+            .header("X-Translately-Key-Count", result.keyCount.toString())
+            .build()
+    }
 
     private fun runFlow(block: () -> Response): Response =
         try {

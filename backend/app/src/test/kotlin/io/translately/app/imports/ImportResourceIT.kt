@@ -208,7 +208,8 @@ open class ImportResourceIT {
             .header("Authorization", "Bearer ${seeded.token}")
             .contentType(ContentType.JSON)
             .body(
-                """{"languageTag":"en","namespaceSlug":"default","mode":"OVERWRITE","body":${quote("""{"unterminated""")}}""",
+                """{"languageTag":"en","namespaceSlug":"default","mode":"OVERWRITE",""" +
+                    """"body":${quote("""{"unterminated""")}}""",
             ).`when`()
             .post(seeded.importPath())
             .then()

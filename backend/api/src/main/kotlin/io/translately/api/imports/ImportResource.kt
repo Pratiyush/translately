@@ -46,7 +46,10 @@ class ImportResource {
     @Operation(summary = "Import i18next flat/nested JSON translations into a project for one language.")
     @APIResponses(
         APIResponse(responseCode = "200", description = "Import finished. Summary in body."),
-        APIResponse(responseCode = "400", description = "Validation failed — bad JSON, unsupported type, missing language tag."),
+        APIResponse(
+            responseCode = "400",
+            description = "Validation failed — bad JSON, unsupported type, missing language tag.",
+        ),
         APIResponse(responseCode = "401", description = "Not authenticated."),
         APIResponse(responseCode = "404", description = "Project / language not found or caller is not a member."),
     )

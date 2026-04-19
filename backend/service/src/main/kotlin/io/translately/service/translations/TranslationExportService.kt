@@ -73,6 +73,33 @@ open class TranslationExportService {
         project: Project,
         request: ExportJsonRequest,
     ): List<JsonTranslationsIO.Entry> {
+        val filter = buildFilter(request)
+        val rows = runQuery(project, filter)
+        val filtered =
+            if (filter.tags.isEmpty()) {
+                rows
+            } else {
+                rows.filter { row ->
+                    val slugs = (row[0] as Key).tags.map { it.slug }
+                    filter.tags.all { it in slugs }
+                }
+            }
+        return filtered.map { row ->
+            val key = row[0] as Key
+            val value = (row[1] as? io.translately.data.entity.Translation)?.value.orEmpty()
+            JsonTranslationsIO.Entry(keyName = key.keyName, value = value)
+        }
+    }
+
+    /** Normalised, validated filter extracted from the request body. */
+    private data class ExportFilter(
+        val languageTag: String,
+        val namespaceSlug: String?,
+        val tags: List<String>,
+        val minState: TranslationState?,
+    )
+
+    private fun buildFilter(request: ExportJsonRequest): ExportFilter {
         val tag = request.languageTag.trim()
         if (tag.isEmpty()) {
             throw OrgException.ValidationFailed(
@@ -86,16 +113,28 @@ open class TranslationExportService {
                 ?.takeIf(String::isNotEmpty)
         val tagFilter = request.tags.mapNotNull { it.trim().lowercase().takeIf(String::isNotEmpty) }
         val minState =
-            request.minStateName?.trim()?.uppercase()?.takeIf(String::isNotEmpty)?.let {
-                try {
-                    TranslationState.valueOf(it)
-                } catch (_: IllegalArgumentException) {
-                    throw OrgException.ValidationFailed(
-                        listOf(OrgException.ValidationFailed.FieldError(path = "minState", code = "INVALID")),
-                    )
-                }
-            }
+            request.minStateName
+                ?.trim()
+                ?.uppercase()
+                ?.takeIf(String::isNotEmpty)
+                ?.let(::parseStateOrThrow)
+        return ExportFilter(languageTag = tag, namespaceSlug = nsFilter, tags = tagFilter, minState = minState)
+    }
 
+    private fun parseStateOrThrow(name: String): TranslationState =
+        try {
+            TranslationState.valueOf(name)
+        } catch (ex: IllegalArgumentException) {
+            log.debugv(ex, "export minState rejected: {0}", name)
+            throw OrgException.ValidationFailed(
+                listOf(OrgException.ValidationFailed.FieldError(path = "minState", code = "INVALID")),
+            )
+        }
+
+    private fun runQuery(
+        project: Project,
+        filter: ExportFilter,
+    ): List<Array<Any?>> {
         val jpql =
             buildString {
                 append(
@@ -107,36 +146,18 @@ open class TranslationExportService {
                       AND k.softDeletedAt IS NULL
                     """.trimIndent(),
                 )
-                if (nsFilter != null) append(" AND k.namespace.slug = :ns")
-                if (minState != null) append(" AND t.state IS NOT NULL AND t.state IN :states")
+                if (filter.namespaceSlug != null) append(" AND k.namespace.slug = :ns")
+                if (filter.minState != null) append(" AND t.state IS NOT NULL AND t.state IN :states")
                 append(" ORDER BY k.keyName")
             }
         val q =
             em
                 .createQuery(jpql, Array<Any?>::class.java)
                 .setParameter("project", project)
-                .setParameter("tag", tag)
-        if (nsFilter != null) q.setParameter("ns", nsFilter)
-        if (minState != null) q.setParameter("states", statesAtOrAbove(minState))
-
-        val rows = q.resultList
-
-        val filtered =
-            if (tagFilter.isEmpty()) {
-                rows
-            } else {
-                rows.filter { row ->
-                    val key = row[0] as Key
-                    val slugs = key.tags.map { it.slug }
-                    tagFilter.all { it in slugs }
-                }
-            }
-
-        return filtered.map { row ->
-            val key = row[0] as Key
-            val value = (row[1] as? io.translately.data.entity.Translation)?.value.orEmpty()
-            JsonTranslationsIO.Entry(keyName = key.keyName, value = value)
-        }
+                .setParameter("tag", filter.languageTag)
+        if (filter.namespaceSlug != null) q.setParameter("ns", filter.namespaceSlug)
+        if (filter.minState != null) q.setParameter("states", statesAtOrAbove(filter.minState))
+        return q.resultList
     }
 
     /**
