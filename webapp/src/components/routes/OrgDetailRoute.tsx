@@ -174,16 +174,22 @@ function ProjectList({ query }: { query: ReturnType<typeof useOrgProjects> }) {
 }
 
 function ProjectListItem({ project }: { project: Project }) {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
   return (
-    <li className="rounded-lg border border-border bg-card p-4" data-testid={`project-item-${project.slug}`}>
-      <h3 className="truncate text-base font-semibold">{project.name}</h3>
-      <p className="mt-1 truncate font-mono text-xs text-muted-foreground">/{project.slug}</p>
-      {project.description ? (
-        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-      ) : null}
-      <p className="mt-2 text-xs text-muted-foreground">
-        {t('route.orgDetail.projects.baseLanguage', { tag: project.baseLanguageTag })}
-      </p>
+    <li className="rounded-lg border border-border bg-card" data-testid={`project-item-${project.slug}`}>
+      <Link
+        to={orgSlug ? `/orgs/${orgSlug}/projects/${project.slug}` : '#'}
+        className="block rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-accent"
+      >
+        <h3 className="truncate text-base font-semibold">{project.name}</h3>
+        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">/{project.slug}</p>
+        {project.description ? (
+          <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{project.description}</p>
+        ) : null}
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t('route.orgDetail.projects.baseLanguage', { tag: project.baseLanguageTag })}
+        </p>
+      </Link>
     </li>
   );
 }
