@@ -1,8 +1,13 @@
 # Translately
 
-> Open-source, MIT-licensed, self-hosted localization and translation management platform. Quarkus + Kotlin backend, React + Vite webapp, PostgreSQL + Redis + MinIO. Bring-your-own-key AI is entirely optional; every "premium" feature (SSO, SAML, LDAP, Tasks, Branching, Glossaries, Webhooks, CDN, audit) ships free.
+> Open-source, MIT-licensed, self-hosted localization and translation management platform. v0.3.0 shipped today (MVP end): keys + translations + ICU validation + i18next JSON import/export. Quarkus + Kotlin backend, React + Vite webapp, PostgreSQL + Redis + MinIO. Bring-your-own-key AI lands in v0.4.0 and is entirely optional — the platform runs end-to-end without it. Every "premium" feature (SSO, SAML, LDAP, Tasks, Branching, Glossaries, Webhooks, CDN, audit) ships free.
 
 The canonical LLM-ingestible corpus for Translately's documentation, generated from the `docs/` tree per the [llmstxt.org](https://llmstxt.org) standard. Regenerate with `scripts/gen-llms-txt.sh` whenever `docs/` changes — CLAUDE.md rule #10 requires it.
+
+## Getting started
+
+- [Home](https://pratiyush.github.io/translately/): Positioning, what ships today, roadmap
+- [Quickstart](https://pratiyush.github.io/translately/quickstart/): 10-minute path from `docker compose up` to first exported JSON
 
 ## Product
 
@@ -10,6 +15,9 @@ The canonical LLM-ingestible corpus for Translately's documentation, generated f
 - [Application shell](https://pratiyush.github.io/translately/product/app-shell/): Nav, org switcher, user menu, routing
 - [Theming](https://pratiyush.github.io/translately/product/theming/): Light / dark / system toggle + persistence
 - [Authentication](https://pratiyush.github.io/translately/product/auth/): Signup, email verify, login, password reset
+- [Organizations and projects](https://pratiyush.github.io/translately/product/organizations-and-projects/): Multi-tenant org + project surface with role management
+- [Keys, namespaces, translations](https://pratiyush.github.io/translately/product/keys-and-translations/): Translation table, autosave editor, key + namespace CRUD
+- [Imports and exports](https://pratiyush.github.io/translately/product/imports-and-exports/): i18next JSON import wizard + export modal
 - [API keys & Personal Access Tokens](https://pratiyush.github.io/translately/product/api-keys-and-pats/): Long-lived credentials for server-to-server + CLI
 
 ## API
@@ -21,6 +29,9 @@ The canonical LLM-ingestible corpus for Translately's documentation, generated f
 - [Rate limits](https://pratiyush.github.io/translately/api/rate-limits/): Per-token and per-endpoint policy
 - [Versioning](https://pratiyush.github.io/translately/api/versioning/): URL-path versioning + deprecation policy
 - [Authentication endpoints](https://pratiyush.github.io/translately/api/auth/): HTTP-level walkthrough of /auth/*
+- [Organizations, projects, members](https://pratiyush.github.io/translately/api/organizations-and-projects/): Tenant + project CRUD + role endpoints
+- [Keys and namespaces](https://pratiyush.github.io/translately/api/keys-and-namespaces/): Translation-key CRUD + per-cell upsert
+- [Imports and exports](https://pratiyush.github.io/translately/api/imports-and-exports/): i18next JSON import + export endpoints
 
 ## Architecture
 
