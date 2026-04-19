@@ -10,6 +10,7 @@ The canonical LLM-ingestible corpus for Translately's documentation, generated f
 - [Application shell](https://pratiyush.github.io/translately/product/app-shell/): Nav, org switcher, user menu, routing
 - [Theming](https://pratiyush.github.io/translately/product/theming/): Light / dark / system toggle + persistence
 - [Authentication](https://pratiyush.github.io/translately/product/auth/): Signup, email verify, login, password reset
+- [API keys & Personal Access Tokens](https://pratiyush.github.io/translately/product/api-keys-and-pats/): Long-lived credentials for server-to-server + CLI
 
 ## API
 

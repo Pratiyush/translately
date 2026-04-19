@@ -55,14 +55,24 @@ class JwtSecurityScopesFilter(
     override fun filter(requestContext: ContainerRequestContext) {
         // SecurityScopes is @RequestScoped — each request starts empty. We
         // don't revokeAll() here because other authenticators (the test-only
-        // X-Test-Scopes filter, eventually API keys / PATs) may run at the
-        // same priority. If there's a valid JWT we union its scopes into
-        // whatever's already present; if not we leave the bag alone.
+        // X-Test-Scopes filter, and the API-key / PAT authenticators) may
+        // run at the same priority. If there's a valid JWT we union its
+        // scopes into whatever's already present; if not we leave the bag
+        // alone.
         if (jwt.isUnsatisfied) return
         val token = runCatching { jwt.get() }.getOrNull() ?: return
-        if (token.subject.isNullOrBlank()) return
+        // Accessing any claim on the injected JsonWebToken proxy goes
+        // through smallrye-jwt's producer, which throws
+        // `IllegalStateException` when the current request's principal
+        // isn't a JSON web token (e.g. authenticated via API key or PAT).
+        // That's a valid state — just not one that contributes JWT scopes.
+        val subject = runCatching { token.subject }.getOrNull()
+        if (subject.isNullOrBlank()) return
 
-        // Refresh tokens are forbidden as bearer credentials.
+        // Refresh tokens are forbidden as bearer credentials. `readStringClaim`
+        // does the typed read that sidesteps the `JsonString.toString()`
+        // regression from #151 — keep that, don't regress back to
+        // `getClaim<Any?>(...)?.toString()` here.
         val tokenType = readStringClaim(token, JwtClaims.TYPE)
         if (tokenType != JwtClaims.TYPE_ACCESS) return
 
@@ -71,7 +81,10 @@ class JwtSecurityScopesFilter(
         // should agree for tokens we issue ourselves, but belt-and-braces.
         val scopeClaim = readStringClaim(token, JwtClaims.SCOPE)
         val fromScope = Scope.parse(scopeClaim)
-        val fromGroups = token.groups.mapNotNull { Scope.fromToken(it) }.toSet()
+        val fromGroups =
+            runCatching {
+                token.groups.mapNotNull { Scope.fromToken(it) }.toSet()
+            }.getOrDefault(emptySet())
         val parsed = fromScope + fromGroups
         if (parsed.isNotEmpty()) {
             securityScopes.grantAll(securityScopes.granted + parsed)

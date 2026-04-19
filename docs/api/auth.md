@@ -8,22 +8,55 @@ nav_order: 5
 
 This page covers **HTTP-level** authentication — the endpoints, the headers, and the payload shapes. For the design-level view (why rotation, why Argon2id, credential-type tradeoffs), see [auth architecture](../architecture/auth.md).
 
-Introduced by: [T103](https://github.com/Pratiyush/translately/issues/21) (email + password + verify + refresh), [T104](https://github.com/Pratiyush/translately/issues/22) (JWT issuer), [T110](https://github.com/Pratiyush/translately/issues/28) (API keys + PATs).
+Introduced by: [T103](https://github.com/Pratiyush/translately/issues/21) (email + password + verify + refresh), [T104](https://github.com/Pratiyush/translately/issues/22) (JWT issuer), [T110](https://github.com/Pratiyush/translately/issues/28) (API keys + PATs), [T110-enforce](https://github.com/Pratiyush/translately/issues/149) (ApiKey + PAT authenticator filters).
 
 Related: [scopes](scopes.md), [errors](errors.md), [auth architecture](../architecture/auth.md).
 
 ## Credential types
 
-Translately accepts four kinds of credential on an authenticated request:
+Translately accepts three kinds of long-lived credentials, plus OIDC in Phase 7:
 
-| Credential | Header | Token prefix | Identifies | TTL |
+| Credential | `Authorization` header (verbatim) | Token prefix | Identifies | TTL |
 |---|---|---|---|---|
-| Access JWT | `Authorization: Bearer <jwt>` | — | a user | ~15 min |
-| API key | `Authorization: ApiKey <prefix>_<secret>` | `tr_apikey_…` | a project | until revoked / expired |
-| PAT | `Authorization: Bearer tr_pat_<prefix>_<secret>` | `tr_pat_…` | a user | until revoked / expired |
+| Access JWT | `Authorization: Bearer <jwt>` | — (JWT is `header.payload.signature`) | a user | ~15 min |
+| API key | `Authorization: ApiKey tr_ak_<8>.<43>` | `tr_ak_` | a project | until revoked / expired |
+| PAT | `Authorization: Bearer tr_pat_<8>.<43>` | `tr_pat_` | a user | until revoked / expired |
 | OIDC (Phase 7) | `Authorization: Bearer <idp-jwt>` | — | a user | IdP-defined |
 
-A request carrying **more than one** credential is rejected — exactly one authenticator runs per request. The prefix (`tr_apikey_…` vs `tr_pat_…` vs a vanilla JWT) tells the filter which branch to take.
+### Dispatch rules
+
+The backend looks at the `Authorization` header and dispatches:
+
+1. **`ApiKey <token>`** — `ApiKeyAuthenticator` handles the request. Scopes come from the `api_keys.scopes` column verbatim.
+2. **`Bearer tr_pat_<token>`** — `PatAuthenticator` handles the request. Scopes are intersected with the owning user's current effective scope set at request time.
+3. **`Bearer <anything-else>`** — the JWT auth layer handles it. A token that fails JWT parsing returns 401 at the HTTP layer, before any JAX-RS filter runs.
+4. **No `Authorization` header** — the request proceeds anonymously. Protected endpoints answer 403 `INSUFFICIENT_SCOPE` (or 401 if the resource carries `@Authenticated`).
+
+A request carrying more than one credential (e.g. a JWT `Authorization` header *plus* an `x-api-key` query parameter) is refused — we never merge grants across credentials. HTTP itself allows only one `Authorization` header, so the common mistake is double-sending the credential in two wire places; the extra will be logged and rejected.
+
+### Token shape on the wire
+
+All three non-JWT credential shapes look the same:
+
+```
+tr_<kind>_<8-char-tail>.<43-char-base64url-secret>
+└───────── prefix ─────┘ └──────────── secret ─────────┘
+```
+
+- The **prefix** is stored in the DB and is safe to show in UIs, logs, and audit trails.
+- The **secret** half is Argon2id-hashed before persistence. It's returned to the mint caller exactly once, then discarded.
+- The `.` separator lets us parse the two halves cleanly even though the base64url secret may contain `_` or `-`.
+
+### Failure modes at authentication time
+
+| HTTP | `error.code` | When |
+|---|---|---|
+| 401 | `UNAUTHENTICATED` | Unknown prefix, bad secret, malformed token shape, or (for `@Authenticated` endpoints) no credential at all |
+| 401 | `CREDENTIAL_REVOKED` | Prefix matches and secret verifies, but `revoked_at IS NOT NULL` |
+| 401 | `CREDENTIAL_EXPIRED` | Prefix matches and secret verifies, but `expires_at < NOW()` |
+| 403 | `INSUFFICIENT_SCOPE` | Credential is valid but the target endpoint requires a scope not in its effective set |
+
+Unknown prefix and bad secret **collapse to the same code** on purpose: exposing the distinction would let an attacker fingerprint the prefix space via timing or response content. Revoked / expired get their own codes because the client can act on the distinction (rotate vs. re-mint).
 
 ## Endpoints
 
@@ -170,24 +203,29 @@ See [auth architecture](../architecture/auth.md#jwt-format) for the full schema 
 ## Using a credential on a protected endpoint
 
 ```bash
-curl -H "Authorization: Bearer $ACCESS" \
+# Access JWT
+curl -H "Authorization: Bearer $ACCESS_JWT" \
      https://api.example.com/api/v1/organizations/acme/projects
 
-# API key variant
-curl -H "Authorization: ApiKey tr_apikey_abc_1234..." \
+# API key — project-scoped, server-to-server
+curl -H "Authorization: ApiKey tr_ak_k9c4n2xb.a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0u1V" \
+     https://api.example.com/api/v1/projects/01HT.../keys
+
+# Personal Access Token — user-scoped, cross-project
+curl -H "Authorization: Bearer tr_pat_k9c4n2xb.a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0u1V" \
      https://api.example.com/api/v1/organizations/acme/projects
 ```
 
-Responses always carry [rate-limit headers](rate-limits.md#response-headers), and on 403 emit the [`INSUFFICIENT_SCOPE` envelope](errors.md#insufficient_scope) plus `WWW-Authenticate: Bearer error="insufficient_scope" scope="…"` when the caller authenticated via bearer.
+Responses always carry [rate-limit headers](rate-limits.md#response-headers), and on 403 emit the [`INSUFFICIENT_SCOPE` envelope](errors.md#insufficient_scope).
 
 ## Minting API keys and PATs
 
-The mint endpoint is authenticated — only an owner / admin can mint API keys; any user can mint a PAT for themselves. Scopes on the new credential are **intersected** with the caller's current scope set (you can't mint something you don't hold).
+API keys are project-scoped and require the `api-keys.write` scope in the owning organization. PATs are user-scoped and require only a valid access JWT — users can always manage their own credentials. Scopes on the new credential are **intersected** with the caller's current scope set (you can't mint something you don't hold).
 
 Both flows return the full secret **exactly once**, in the `201 Created` response. The secret is Argon2id-hashed before persistence; there is no "reveal" endpoint.
 
 ```http
-POST /api/v1/organizations/acme/api-keys
+POST /api/v1/projects/01HT.../api-keys
 Authorization: Bearer <access-jwt>
 Content-Type: application/json
 
@@ -197,19 +235,18 @@ Content-Type: application/json
 }
 
 HTTP/1.1 201 Created
-Location: /api/v1/organizations/acme/api-keys/01HT...
 Content-Type: application/json
 
 {
   "id":     "01HT...",
-  "prefix": "tr_apikey_9zF4n6",
-  "secret": "tr_apikey_9zF4n6_aBcDeFgHiJkLmN...",
-  "scopes": ["keys.read", "keys.write", "translations.write", "imports.write"],
+  "prefix": "tr_ak_9zF4n6ab",
+  "secret": "tr_ak_9zF4n6ab.aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789_-AbCdEfG",
+  "scopes": ["imports.write", "keys.read", "keys.write", "translations.write"],
   "createdAt": "2026-04-18T10:45:00Z"
 }
 ```
 
-Save the `secret` somewhere safe — the server never shows it again.
+Save the `secret` somewhere safe — the server never shows it again. Full product walkthrough at [API keys and PATs](../product/api-keys-and-pats.md).
 
 ## OpenAPI
 

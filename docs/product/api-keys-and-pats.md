@@ -174,7 +174,47 @@ Trying to revoke someone else's PAT returns `404 NOT_FOUND` — the server never
 
 ## Authentication on protected endpoints
 
-This page covers **issuance**. The authenticator filter that accepts `Authorization: ApiKey …` and `Authorization: Bearer tr_pat_…` on protected endpoints lands in a follow-up PR. Until then, API keys and PATs are minted and stored but can't yet be presented to authenticate a request — the JWT access-token flow remains the only path.
+Authentication is **live** — both credential types are accepted on every protected endpoint alongside access JWTs. Present the full token exactly as it was returned at mint time:
+
+```bash
+# API key
+curl -H "Authorization: ApiKey tr_ak_k9c4n2xb.a1B2c3D4…" \
+     https://your-host/api/v1/projects/01HT…/keys
+
+# Personal Access Token
+curl -H "Authorization: Bearer tr_pat_k9c4n2xb.a1B2c3D4…" \
+     https://your-host/api/v1/organizations/acme/projects
+```
+
+The backend dispatches on the header shape:
+
+- `Authorization: ApiKey <token>` → API-key authenticator; scopes taken from the stored `api_keys.scopes` column.
+- `Authorization: Bearer tr_pat_<token>` → PAT authenticator; scopes intersected with the owning user's **current** effective scopes (see below).
+- `Authorization: Bearer <jwt>` (anything else) → normal JWT access-token flow.
+
+Every request is scoped by exactly one credential. Presenting two credentials on the same request (e.g. a JWT header plus an API-key query parameter) is refused at the HTTP layer — there's no merging of grants.
+
+### PAT scope intersection at request time
+
+The scopes a PAT was minted with are an **upper bound**. On every request the authenticator recomputes the owning user's effective scope set from their current `OrganizationMember` rows and intersects. Practical consequence:
+
+- Mint a PAT with `keys.write translations.write` while you're an ADMIN of org X.
+- You are demoted to MEMBER of org X (ADMIN is a superset of MEMBER, and MEMBER *does* hold `keys.write` + `translations.write`) — the PAT keeps working.
+- You are demoted to MEMBER of org Y where you originally held ADMIN, and the PAT also carried `api-keys.write` — `api-keys.write` is ADMIN-only, so that scope is dropped from the request's effective set, and any endpoint that requires it will 403. Other scopes the MEMBER still holds continue to work.
+- You are removed from every org you belong to → the PAT's effective scope set collapses to empty, every protected endpoint returns 403. Revoke the PAT if you want a cleaner "not authenticated" answer.
+
+API keys don't re-intersect — they're project-scoped, and the minting admin already enforced intersection at issue time. Revocation or a past `expires_at` is the only way to cut an API key off.
+
+### Failure modes
+
+| HTTP | `error.code` | Meaning |
+|---|---|---|
+| 401 | `UNAUTHENTICATED` | Unknown prefix, bad secret, or malformed token. Intentionally indistinguishable so attackers can't probe the prefix space. |
+| 401 | `CREDENTIAL_REVOKED` | `revoked_at` has been stamped on the row. |
+| 401 | `CREDENTIAL_EXPIRED` | `expires_at` has passed. |
+| 403 | `INSUFFICIENT_SCOPE` | Credential is valid but lacks the scope(s) the endpoint requires. |
+
+Introduced by: [T110-enforce](https://github.com/Pratiyush/translately/issues/149).
 
 ## Error-code reference
 
@@ -185,9 +225,11 @@ This page covers **issuance**. The authenticator filter that accepts `Authorizat
 | `204` | — | Revoke succeeded (or was already revoked) |
 | `400` | `VALIDATION_FAILED` | Missing name, empty scopes, past expiry |
 | `400` | `UNKNOWN_SCOPE` | A requested scope token isn't in [Scope](../api/scopes.md) |
-| `401` | `UNAUTHENTICATED` | No JWT on the request |
-| `403` | `SCOPE_ESCALATION` | Requested a scope the caller doesn't hold |
-| `403` | `INSUFFICIENT_SCOPE` | Caller lacks `api-keys.read` / `api-keys.write` on an API-key endpoint |
+| `401` | `UNAUTHENTICATED` | No credential on the request, unknown prefix, or bad secret |
+| `401` | `CREDENTIAL_REVOKED` | API key / PAT exists and secret matches, but `revoked_at` is set |
+| `401` | `CREDENTIAL_EXPIRED` | API key / PAT exists and secret matches, but `expires_at` has passed |
+| `403` | `SCOPE_ESCALATION` | Mint request asked for a scope the caller doesn't hold |
+| `403` | `INSUFFICIENT_SCOPE` | Valid credential, but the scope required by the endpoint isn't in its effective set |
 | `404` | `NOT_FOUND` | Project / PAT / API key not found (or not owned by caller) |
 
 See the [full catalogue](../api/errors.md) for response envelopes.
