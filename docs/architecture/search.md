@@ -8,7 +8,7 @@ nav_order: 8
 
 Translately searches keys and translations with Postgres's built-in full-text + trigram indexes — no Elasticsearch in v1. The steering doc ([`.kiro/steering/architecture.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/architecture.md)) declares the "no Elasticsearch" rule; this page records the how and why.
 
-Introduced by: [T206](https://github.com/Pratiyush/translately/issues/47) · First migration: [`V4__keys_fts_trigram.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V4__keys_fts_trigram.sql).
+Introduced by: [T206](https://github.com/Pratiyush/translately/issues/47) · First migration: `V4__keys_fts_trigram.sql`.
 
 ## Why Postgres, not Elasticsearch
 
@@ -93,6 +93,6 @@ A single `KeySearchHit` carries the entity + its rank so the API layer can expos
 
 ## Bench + smoke
 
-The integration test [`backend/app/src/test/kotlin/io/translately/app/keys/KeySearchServiceIT.kt`](https://github.com/Pratiyush/translately/blob/master/backend/app/src/test/kotlin/io/translately/app/keys/KeySearchServiceIT.kt) seeds 10 keys / 3 tags / 7 translations and exercises every filter combination against a real Postgres container. No Postgres features are themselves tested — the goal is query composition, not PG correctness.
+The integration test `backend/app/src/test/kotlin/io/translately/app/keys/KeySearchServiceIT.kt` seeds 10 keys / 3 tags / 7 translations and exercises every filter combination against a real Postgres container. No Postgres features are themselves tested — the goal is query composition, not PG correctness.
 
 See also: [ADR 0003 — Postgres FTS over Elasticsearch for v1](decisions/0003-postgres-fts-over-elasticsearch.md).

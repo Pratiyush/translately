@@ -6,7 +6,7 @@ nav_order: 2
 
 # Data model
 
-Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under [`backend/data/src/main/resources/db/migration/`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/). This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
+Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under `backend/data/src/main/resources/db/migration/`. This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
 
 Introduced by: [T101](https://github.com/Pratiyush/translately/issues/129) · First migration: `V1__auth_and_orgs.sql`.
 
@@ -19,7 +19,7 @@ Every durable entity carries **two** identifiers:
 
 **Why both.** Using a bigserial for FKs keeps indexes tiny and joins fast; exposing ULIDs on the wire avoids leaking row counts, dodges integer-enumeration attacks, and lets callers sort by ID as a coarse creation-time sort.
 
-Generation lives in [`io.translately.data.Ulid`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/kotlin/io/translately/data/Ulid.kt); a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
+Generation lives in `io.translately.data.Ulid`; a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
 
 ## Conventions
 
@@ -166,7 +166,7 @@ Anything referenced via `FOREIGN KEY … ON DELETE CASCADE` hard-deletes automat
 
 ## V1 migration story
 
-[`V1__auth_and_orgs.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V1__auth_and_orgs.sql) is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
+`V1__auth_and_orgs.sql` is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
 
 ### Creation order
 
@@ -259,7 +259,7 @@ The state-machine rationale lives in [ADR 0002](decisions/0002-translation-state
 
 ### V4 — search index layer
 
-[`V4__keys_fts_trigram.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V4__keys_fts_trigram.sql) layers the search infrastructure on top of V3. It's index-only — no new tables, no data model change:
+`V4__keys_fts_trigram.sql` layers the search infrastructure on top of V3. It's index-only — no new tables, no data model change:
 
 - Enables `CREATE EXTENSION pg_trgm` (ships with Postgres 16 core).
 - Adds a generated `keys.search_vector` column of type `tsvector`. Populated from `key_name` (both as-is and with `[._-]+` runs replaced by spaces so identifier-style names tokenise segment-by-segment) plus `description`. `GENERATED ALWAYS ... STORED` keeps it in lock-step with its source columns without a trigger.

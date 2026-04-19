@@ -1751,7 +1751,7 @@ nav_order: 2
 
 # Data model
 
-Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under [`backend/data/src/main/resources/db/migration/`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/). This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
+Translately's persistence layer is PostgreSQL 16 with Hibernate ORM + Panache (blocking JDBC). Schema evolution is driven by Flyway, plain-SQL migrations under `backend/data/src/main/resources/db/migration/`. This page is the narrative partner of `V1__auth_and_orgs.sql` — start here for the **why** and jump to the migration for the **how**.
 
 Introduced by: [T101](https://github.com/Pratiyush/translately/issues/129) · First migration: `V1__auth_and_orgs.sql`.
 
@@ -1764,7 +1764,7 @@ Every durable entity carries **two** identifiers:
 
 **Why both.** Using a bigserial for FKs keeps indexes tiny and joins fast; exposing ULIDs on the wire avoids leaking row counts, dodges integer-enumeration attacks, and lets callers sort by ID as a coarse creation-time sort.
 
-Generation lives in [`io.translately.data.Ulid`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/kotlin/io/translately/data/Ulid.kt); a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
+Generation lives in `io.translately.data.Ulid`; a Hibernate `@PrePersist` hook assigns it if the entity is persisted without one.
 
 ## Conventions
 
@@ -1911,7 +1911,7 @@ Anything referenced via `FOREIGN KEY … ON DELETE CASCADE` hard-deletes automat
 
 ## V1 migration story
 
-[`V1__auth_and_orgs.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V1__auth_and_orgs.sql) is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
+`V1__auth_and_orgs.sql` is the first migration, shipped with T102. It lands seven tables, every FK, every unique constraint, every enum `CHECK`, and the hot-path indexes.
 
 ### Creation order
 
@@ -2004,7 +2004,7 @@ The state-machine rationale lives in [ADR 0002](decisions/0002-translation-state
 
 ### V4 — search index layer
 
-[`V4__keys_fts_trigram.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V4__keys_fts_trigram.sql) layers the search infrastructure on top of V3. It's index-only — no new tables, no data model change:
+`V4__keys_fts_trigram.sql` layers the search infrastructure on top of V3. It's index-only — no new tables, no data model change:
 
 - Enables `CREATE EXTENSION pg_trgm` (ships with Postgres 16 core).
 - Adds a generated `keys.search_vector` column of type `tsvector`. Populated from `key_name` (both as-is and with `[._-]+` runs replaced by spaces so identifier-style names tokenise segment-by-segment) plus `description`. `GENERATED ALWAYS ... STORED` keeps it in lock-step with its source columns without a trigger.
@@ -2235,8 +2235,8 @@ If a deployment later outgrows this — tens of millions of keys, complex langua
 ## Links
 
 - PR: <https://github.com/Pratiyush/translately/pulls?q=T206>
-- Migration source: [`V4__keys_fts_trigram.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V4__keys_fts_trigram.sql)
-- Service source: [`KeySearchService.kt`](https://github.com/Pratiyush/translately/blob/master/backend/service/src/main/kotlin/io/translately/service/keys/KeySearchService.kt)
+- Migration source: `V4__keys_fts_trigram.sql`
+- Service source: `KeySearchService.kt`
 - Architecture page: [Search](../search.md)
 - [ADR index](README.md)
 
@@ -2710,7 +2710,7 @@ nav_order: 8
 
 Translately searches keys and translations with Postgres's built-in full-text + trigram indexes — no Elasticsearch in v1. The steering doc ([`.kiro/steering/architecture.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/architecture.md)) declares the "no Elasticsearch" rule; this page records the how and why.
 
-Introduced by: [T206](https://github.com/Pratiyush/translately/issues/47) · First migration: [`V4__keys_fts_trigram.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V4__keys_fts_trigram.sql).
+Introduced by: [T206](https://github.com/Pratiyush/translately/issues/47) · First migration: `V4__keys_fts_trigram.sql`.
 
 ## Why Postgres, not Elasticsearch
 
@@ -2795,7 +2795,7 @@ A single `KeySearchHit` carries the entity + its rank so the API layer can expos
 
 ## Bench + smoke
 
-The integration test [`backend/app/src/test/kotlin/io/translately/app/keys/KeySearchServiceIT.kt`](https://github.com/Pratiyush/translately/blob/master/backend/app/src/test/kotlin/io/translately/app/keys/KeySearchServiceIT.kt) seeds 10 keys / 3 tags / 7 translations and exercises every filter combination against a real Postgres container. No Postgres features are themselves tested — the goal is query composition, not PG correctness.
+The integration test `backend/app/src/test/kotlin/io/translately/app/keys/KeySearchServiceIT.kt` seeds 10 keys / 3 tags / 7 translations and exercises every filter combination against a real Postgres container. No Postgres features are themselves tested — the goal is query composition, not PG correctness.
 
 See also: [ADR 0003 — Postgres FTS over Elasticsearch for v1](decisions/0003-postgres-fts-over-elasticsearch.md).
 

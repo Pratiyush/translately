@@ -57,7 +57,7 @@ If a deployment later outgrows this — tens of millions of keys, complex langua
 ## Links
 
 - PR: <https://github.com/Pratiyush/translately/pulls?q=T206>
-- Migration source: [`V4__keys_fts_trigram.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V4__keys_fts_trigram.sql)
-- Service source: [`KeySearchService.kt`](https://github.com/Pratiyush/translately/blob/master/backend/service/src/main/kotlin/io/translately/service/keys/KeySearchService.kt)
+- Migration source: `V4__keys_fts_trigram.sql`
+- Service source: `KeySearchService.kt`
 - Architecture page: [Search](../search.md)
 - [ADR index](README.md)
