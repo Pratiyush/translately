@@ -99,8 +99,11 @@ quarkus:
       json: true
 
   # Datasource / JPA / Flyway are on the classpath via the :backend:data module.
-  # For Phase 0 there are no entities and no migrations; keep them inactive so the
-  # app boots without a running database. Each profile enables them as needed.
+  # The default block ships `active: false` so the classpath stays inert for
+  # tooling-only tasks (e.g. `./gradlew :backend:app:quarkusGenerateCode`,
+  # schema-only smoke probes) that don't want a database on the other end.
+  # Every runtime profile (%dev, %test, %prod) overrides these to `true` so
+  # real use always boots against Postgres — see the per-profile blocks below.
   datasource:
     db-kind: postgresql
     devservices:
@@ -133,6 +136,14 @@ quarkus:
       category:
         "io.translately":
           level: DEBUG
+    # Re-enable the JPA + migrations layer that the Phase 0 default
+    # block turned off. Every phase since v0.1.0 ships real entities +
+    # Flyway migrations, so quarkusDev needs both active.
+    hibernate-orm:
+      active: true
+    flyway:
+      active: true
+      migrate-at-start: true
     datasource:
       # docker compose up -d brings this up at localhost:5432
       username: translately
@@ -178,6 +189,15 @@ quarkus:
   quarkus:
     log:
       level: INFO
+    # Re-enable the JPA + migrations layer that the Phase 0 default
+    # block turned off. Production deploys rely on Flyway to apply
+    # V1..V4 (and future migrations) at boot so a fresh Postgres lands
+    # at a consistent schema.
+    hibernate-orm:
+      active: true
+    flyway:
+      active: true
+      migrate-at-start: true
     datasource:
       username: ${QUARKUS_DATASOURCE_USERNAME}
       password: ${QUARKUS_DATASOURCE_PASSWORD}
