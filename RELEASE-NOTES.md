@@ -4,6 +4,62 @@ Long-form release narratives. For raw diffs and per-PR detail, see [CHANGELOG.md
 
 ---
 
+## v0.2.0 — Phase 2: Keys, translations, and ICU
+
+**Released:** 2026-04-19
+**Status:** prerelease
+**Tag:** `v0.2.0` (GPG-signed) · [Compare with v0.1.0](https://github.com/Pratiyush/translately/compare/v0.1.0...v0.2.0)
+
+### The headline
+
+v0.1.0 gave you accounts, organizations, and projects. **v0.2.0 gives you what goes inside a project** — translation keys, per-language translations, namespaces to group keys, and the ICU MessageFormat validator that keeps translators honest. The webapp now has a real translation table with a sticky key column, a per-cell autosave editor that surfaces ICU errors inline, and create/delete flows for keys and namespaces. Every feature ships MIT, zero paywalled tier.
+
+The backend search layer lights up Postgres full-text + trigram behind a single `KeySearchService` so large projects stay snappy without dragging Elasticsearch into the self-hosted footprint. Tasks, bulk ops, and the activity-log panel moved to later phases so Phase 2 can close on time — see `tasks.md` for the full status.
+
+### Data model + migrations (T201 + T202)
+
+Seven new JPA entities (`Namespace`, `Tag`, `Key`, `KeyMeta`, `Translation`, `Comment`, `Activity`) and three enums (`KeyState`, `TranslationState`, `ActivityType`) land in `:backend:data`. Flyway `V3__keys_translations_icu.sql` creates eight tables with matching `CHECK` / `UNIQUE` / `FK ON DELETE CASCADE` constraints. [ADR 0002](https://pratiyush.github.io/translately/architecture/decisions/0002-translation-state-machine/) documents the 5-state translation lifecycle (`EMPTY / DRAFT / TRANSLATED / REVIEW / APPROVED`) — totally ordered so "approved" downloads filter cleanly. A follow-up V4 migration enables `pg_trgm` and adds a generated `keys.search_vector` tsvector column + GIN indexes for the search service.
+
+### ICU MessageFormat validator (T203)
+
+`IcuValidator` in `:backend:service/translations` parses ICU source via `com.ibm.icu:icu4j:76.1` `MessagePattern`. Rejects malformed syntax, missing `other` branches on plural/selectordinal/select, and unknown SIMPLE argument types. Reports line + column on every error so the editor can highlight the offending character. Accepts empty strings — `TranslationState` gates export, not the validator. The same instance powers the translation editor's autosave path and the JSON importer landing in v0.3.0.
+
+### Backend CRUD for keys, namespaces, and translations (T208)
+
+`KeyService` covers list / create / get / rename / soft-delete for keys and list / create for namespaces. `upsertTranslation` is the single write path for translation cells — flips the per-cell state to `DRAFT` on non-blank input, leaves it `EMPTY` on blank, writes an `Activity(TRANSLATED)` row on every edit. Every operation runs membership-gated: non-members see `NOT_FOUND`, never `FORBIDDEN`, so private projects don't leak via existence oracle. Five new paths and 13 new OpenAPI operations under `/api/v1/organizations/{orgSlug}/projects/{projectSlug}/{keys,namespaces}`.
+
+### Postgres full-text + trigram search (T206)
+
+`KeySearchService` composes a native-SQL query from a `KeySearchQuery` DTO — filters by namespace, tag intersection, lifecycle state; `ts_rank` surfaces the match score; trigram similarity is the fallback when FTS has no hits. The text-search configuration is deliberately `'simple'` (no language-specific stemming) — [ADR 0003](https://pratiyush.github.io/translately/architecture/decisions/0003-postgres-fts-over-elasticsearch/) explains why Elasticsearch didn't make the cut for v1.
+
+### Translation table + editor + key/namespace CRUD in the webapp (T207 + T208)
+
+New route at `/orgs/:orgSlug/projects/:projectSlug` with **Keys** / **Namespaces** / **Settings** tabs. The Keys tab renders a sticky-first-column table with 5-state translation badges and a per-cell autosave textarea — blur or `⌘/Ctrl+↵` commits, `Escape` reverts, ICU errors surface inline. Create-key + delete-key + create-namespace dialogs use react-hook-form + Zod; project tiles under `/orgs/:slug` and `/projects` now link through. CodeMirror 6 ICU syntax highlighting, keyboard-grid cell navigation, and the activity-log panel are tracked for the post-v0.2.0 polish milestone — MVP ships the minimum a translator needs to be productive.
+
+### Governance: CLA inbound + MIT outbound + behavioral rules
+
+A new [Contributor License Agreement](https://github.com/Pratiyush/translately/blob/master/CLA.md) (Apache-ICLA-adapted, copyright-license form — contributor retains ownership, grants the maintainer perpetual unlimited rights including relicensing) now backs every accepted PR via a click-wrap checkbox in the PR template. Rule #12 in CLAUDE.md enforces the checkbox at review; review-rejects PRs that omit or strike it. A new Behavioral Rules section codifies how Claude Code should think about changes (think-before-code, simplicity-first, surgical diffs, goal-driven loops, flag-decisions-not-actions, terse-over-comprehensive).
+
+### API-key + PAT authentication enforcement ([#149](https://github.com/Pratiyush/translately/issues/149))
+
+Two new JAX-RS filters plug the credential surface into the authentication pipeline. `ApiKeyAuthenticator` parses `Authorization: ApiKey <prefix>.<secret>`, Argon2id-verifies the secret, pushes scopes into `SecurityScopes`. `PatAuthenticator` parses `Bearer tr_pat_…` and intersects the PAT's stored scopes with the owning user's **current** effective scope set computed from org memberships — a PAT minted while a user was ADMIN of an org it's now only MEMBER of loses its ADMIN-only scopes on every subsequent request, no revoke needed. `NonJwtBearerAuthMechanism` at priority 2000 makes the coexistence with smallrye-jwt clean; `CredentialAuthenticator` in `:backend:service/credentials` is the DB boundary.
+
+### Documentation
+
+New pages under `docs/`:
+- [`product/keys-and-translations.md`](https://pratiyush.github.io/translately/product/keys-and-translations.html) — walkthrough of the table, editor, and dialogs.
+- [`architecture/icu-validation.md`](https://pratiyush.github.io/translately/architecture/icu-validation/) — what the validator checks and what it deliberately leaves out.
+- [`architecture/search.md`](https://pratiyush.github.io/translately/architecture/search/) — FTS vs. trigram composition.
+- [`architecture/decisions/0002-translation-state-machine.md`](https://pratiyush.github.io/translately/architecture/decisions/0002-translation-state-machine/) and [`0003-postgres-fts-over-elasticsearch.md`](https://pratiyush.github.io/translately/architecture/decisions/0003-postgres-fts-over-elasticsearch/).
+- [`api/keys-and-namespaces.md`](https://pratiyush.github.io/translately/api/keys-and-namespaces/) — endpoint reference.
+- 14 light + dark screenshots committed under `docs/product/screenshots/`, embedded via `<picture>` so the docs site automatically shows the right variant.
+
+### What's next
+
+v0.3.0 closes MVP with **i18next JSON import + export** — a four-step wizard in the webapp paired with the sync endpoints already merged on master. Async + SSE progress streaming for very large payloads is deferred to Phase 4 (T303). After v0.3.0, the bill is paid: Translately works end-to-end without AI configured. Phase 4 starts BYOK AI + MT.
+
+---
+
 ## v0.1.0 — Phase 1: Authentication + Organizations
 
 **Released:** 2026-04-18

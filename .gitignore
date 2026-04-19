@@ -42,6 +42,8 @@ secrets/
 .claude/settings.local.json
 # Transient git worktrees used by the local agent harness (never committed)
 .claude/worktrees/
+# Transient scheduled-task lock file emitted by the harness runtime
+.claude/scheduled_tasks.lock
 
 # TypeScript incremental build info
 *.tsbuildinfo
