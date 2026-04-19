@@ -234,8 +234,31 @@ Beyond the uniques, V1 creates five covering indexes chosen for the first authen
 
 Anything else can run off the uniques / PKs; we'll add more indexes in later phases as real query patterns emerge, never speculatively.
 
+## V3 Phase 2 data model (keys + translations)
+
+Phase 2 lands in `V3__keys_translations_icu.sql` (V2 was consumed by the Phase 1 auth-token tables). Eight new tables layer on top of V1's `projects`:
+
+- **`namespaces`** — groups keys inside a project. Unique `(project_id, slug)`; lowercase kebab slugs.
+- **`tags`** — freeform labels for keys. Unique `(project_id, slug)`; optional `#rrggbb` colour.
+- **`keys`** — the atomic translation unit. Unique `(project_id, namespace_id, key_name)`; state enum (`NEW / TRANSLATING / REVIEW / DONE`); soft-delete via `soft_deleted_at`.
+- **`key_meta`** — key/value side-table for platform-specific hints (Android `context`, iOS developer notes). Unique `(key_id, meta_key)`.
+- **`key_tags`** — many-to-many join between `keys` and `tags`.
+- **`translations`** — one per `(key_id, language_tag)`. ICU source in `value`; state enum (`EMPTY / DRAFT / TRANSLATED / REVIEW / APPROVED` — see [ADR 0002](decisions/0002-translation-state-machine.md)). `author_user_id` is nullable + `ON DELETE SET NULL` so a user deletion doesn't orphan the translation.
+- **`key_comments`** — translator ⇄ reviewer conversations on a key. Required author; cascades on user delete.
+- **`key_activity`** — append-only audit trail, one row per lifecycle event. `action_type` enum covers the seven current events; `diff_json` (JSONB) is reserved for the Phase 7 audit-log (T706) payload.
+
+Cascades: every child → parent FK is `ON DELETE CASCADE` except the two `author` / `actor` links into `users`, which use `SET NULL` so translations and activity rows outlive the user who created them.
+
+Hot-path indexes added in V3:
+
+- `idx_keys_project`, `idx_keys_namespace`, `idx_keys_state` — list + filter by namespace and lifecycle state.
+- `idx_translations_key`, `idx_translations_state` — per-key fan-out + state filter.
+- `idx_key_activity_key`, `idx_key_activity_created` — the per-key timeline renders newest-first.
+
+The state-machine rationale lives in [ADR 0002](decisions/0002-translation-state-machine.md). The FTS + trigram index on `key_name` and `translations.value` is a separate concern wired in T206 (#47), not here.
+
 ## Future migrations
 
-Phase 2 (`V2__keys_translations_icu.sql`) introduces `keys`, `translations`, `namespaces`, `tags`, `comments`, `activities`. Phase 3 adds `import_jobs` / `export_jobs`. Phase 4 adds translation memory, budgets, per-provider audit rows. The ID and naming conventions above are inviolate across all of them.
+Phase 3 adds `import_jobs` / `export_jobs`. Phase 4 adds translation memory, budgets, per-provider audit rows. The ID and naming conventions above are inviolate across all of them.
 
 See [`.kiro/steering/architecture.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/architecture.md) for the operational guardrails (forward-only migrations, no destructive changes without a deprecation window).
