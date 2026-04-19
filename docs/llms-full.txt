@@ -2309,7 +2309,7 @@ Empty or blank sources are valid. The `TranslationState` enum on the Translation
 
 ## Tests
 
-- `backend/service/src/test/kotlin/io/translately/service/translations/IcuValidatorTest.kt` — 13 cases covering happy path, CLDR plural sets (English + Russian + Serbian), missing-`other` rejection on plural / selectordinal / select, unknown arg type, malformed source with line+col recovery, nested plural-in-select, and nested errors surfaced inside well-formed outer structures.
+- `backend/service/src/test/kotlin/io/translately/service/translations/IcuValidatorTest.kt` — 17 cases covering happy path + Unicode/emoji + empty/blank, CLDR plural sets (English + Russian + Serbian), missing-`other` rejection on plural / selectordinal / select, unknown arg type, malformed single- and multi-line source with line+col recovery, nested plural-in-select, and nested errors surfaced inside well-formed outer structures.
 
 No integration test is needed — the validator is a pure function and doesn't touch the database.
 
