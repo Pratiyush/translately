@@ -1977,9 +1977,32 @@ Beyond the uniques, V1 creates five covering indexes chosen for the first authen
 
 Anything else can run off the uniques / PKs; we'll add more indexes in later phases as real query patterns emerge, never speculatively.
 
+## V3 Phase 2 data model (keys + translations)
+
+Phase 2 lands in `V3__keys_translations_icu.sql` (V2 was consumed by the Phase 1 auth-token tables). Eight new tables layer on top of V1's `projects`:
+
+- **`namespaces`** — groups keys inside a project. Unique `(project_id, slug)`; lowercase kebab slugs.
+- **`tags`** — freeform labels for keys. Unique `(project_id, slug)`; optional `#rrggbb` colour.
+- **`keys`** — the atomic translation unit. Unique `(project_id, namespace_id, key_name)`; state enum (`NEW / TRANSLATING / REVIEW / DONE`); soft-delete via `soft_deleted_at`.
+- **`key_meta`** — key/value side-table for platform-specific hints (Android `context`, iOS developer notes). Unique `(key_id, meta_key)`.
+- **`key_tags`** — many-to-many join between `keys` and `tags`.
+- **`translations`** — one per `(key_id, language_tag)`. ICU source in `value`; state enum (`EMPTY / DRAFT / TRANSLATED / REVIEW / APPROVED` — see [ADR 0002](decisions/0002-translation-state-machine.md)). `author_user_id` is nullable + `ON DELETE SET NULL` so a user deletion doesn't orphan the translation.
+- **`key_comments`** — translator ⇄ reviewer conversations on a key. Required author; cascades on user delete.
+- **`key_activity`** — append-only audit trail, one row per lifecycle event. `action_type` enum covers the seven current events; `diff_json` (JSONB) is reserved for the Phase 7 audit-log (T706) payload.
+
+Cascades: every child → parent FK is `ON DELETE CASCADE` except the two `author` / `actor` links into `users`, which use `SET NULL` so translations and activity rows outlive the user who created them.
+
+Hot-path indexes added in V3:
+
+- `idx_keys_project`, `idx_keys_namespace`, `idx_keys_state` — list + filter by namespace and lifecycle state.
+- `idx_translations_key`, `idx_translations_state` — per-key fan-out + state filter.
+- `idx_key_activity_key`, `idx_key_activity_created` — the per-key timeline renders newest-first.
+
+The state-machine rationale lives in [ADR 0002](decisions/0002-translation-state-machine.md). The FTS + trigram index on `key_name` and `translations.value` is a separate concern wired in T206 (#47), not here.
+
 ## Future migrations
 
-Phase 2 (`V2__keys_translations_icu.sql`) introduces `keys`, `translations`, `namespaces`, `tags`, `comments`, `activities`. Phase 3 adds `import_jobs` / `export_jobs`. Phase 4 adds translation memory, budgets, per-provider audit rows. The ID and naming conventions above are inviolate across all of them.
+Phase 3 adds `import_jobs` / `export_jobs`. Phase 4 adds translation memory, budgets, per-provider audit rows. The ID and naming conventions above are inviolate across all of them.
 
 See [`.kiro/steering/architecture.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/architecture.md) for the operational guardrails (forward-only migrations, no destructive changes without a deprecation window).
 
@@ -2076,6 +2099,68 @@ We store the full string in a single `VARCHAR(256)` column (`users.password_hash
 - [PasswordHasher source](https://github.com/Pratiyush/translately/blob/master/backend/security/src/main/kotlin/io/translately/security/password/PasswordHasher.kt)
 
 
+<!-- ===== FILE: architecture/decisions/0002-translation-state-machine.md ===== -->
+
+---
+title: 0002 — Translation state machine
+parent: ADRs
+grand_parent: Architecture
+nav_order: 2
+---
+
+# 0002 — Translation state machine
+
+- **Status:** Accepted
+- **Date:** 2026-04-19
+- **Deciders:** Pratiyush
+- **Context link:** <https://github.com/Pratiyush/translately/issues/42>
+
+## Context and problem statement
+
+Phase 2 introduces per-language translation cells. A given `Key` has one `Translation` row per configured language, and each cell needs a lifecycle state the UI can filter on, the importer can hydrate, and the audit log can diff. The state doubles as the export gate — only fully-APPROVED translations should land in a production bundle without a reviewer's explicit override.
+
+How rich should that state machine be? Too few states and reviewers can't distinguish "I wrote this and need someone to look" from "this is ready to ship." Too many and every transition becomes a UI decision the translator has to defend.
+
+## Decision drivers
+
+- Covers the translator → reviewer → export loop with zero manual tagging.
+- Maps cleanly onto the `CHECK` constraint we ship in V3; string values persist over decades.
+- Plays well with bulk imports (rows often land already-translated with no human review).
+- Matches the idioms a translator moving from another localization tool will expect.
+- Expressible as a single `VARCHAR(16)` column with a CHECK constraint — no side-tables, no bitfields.
+
+## Considered options
+
+1. **3 states:** `EMPTY / TRANSLATED / APPROVED`. Minimal; no draft-vs-finished split, no review limbo.
+2. **4 states:** `EMPTY / TRANSLATED / REVIEW / APPROVED`. Review as an explicit interstitial, but no draft state.
+3. **5 states:** `EMPTY / DRAFT / TRANSLATED / REVIEW / APPROVED`. Draft = saved but not yet finished; TRANSLATED = the translator thinks it's done; REVIEW = someone else is looking; APPROVED = cleared for export.
+4. **6 states:** add `OBSOLETE` or `REJECTED` to 5-state for rejected review outcomes. Every rejection re-enters the flow by reverting to DRAFT anyway, so the extra state is cosmetic.
+
+## Decision outcome
+
+**Chosen option: Option 3 (5 states).** The DRAFT↔TRANSLATED split is the one the UI actually needs — autosave while typing lands as DRAFT, explicit "mark done" promotes to TRANSLATED. The REVIEW phase lets the reviewer hold the cell while working through it so edits don't race.
+
+Rejection uses the existing DRAFT transition (rejecting sends the cell back to DRAFT with a comment); no sixth state needed.
+
+### Consequences
+
+- **Good:** UI gets three meaningful filter chips (DRAFT, TRANSLATED, REVIEW) plus the outer bookends; exporters have one predicate (`state = 'APPROVED'`) to filter on; importers that can't know review status hydrate as TRANSLATED and let a reviewer promote.
+- **Neutral:** transitions are advisory (not enforced by DB), so every state is reachable from every other — the DB CHECK is the sole hard guarantee. Service layer can add transition rules later without schema churn.
+- **Bad:** "rejection" has no first-class representation beyond a comment + DRAFT revert. If the product grows a formal rejection UX later, we'd add `REJECTED` in a future migration.
+
+### Implementation notes
+
+- Touched modules: `backend/data` (`TranslationState.kt`, V3 migration), `backend/service` (future Phase 2 work wiring the transitions).
+- Migration: new field, no backfill — this is greenfield.
+- Rollback: drop the `translations` table (V3 migration revert) undoes it entirely.
+
+## Links
+
+- PR: <https://github.com/Pratiyush/translately/pulls?q=T201>
+- Entity source: [`Translation.kt`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/kotlin/io/translately/data/entity/Translation.kt)
+- [ADR index](README.md)
+
+
 <!-- ===== FILE: architecture/decisions/README.md ===== -->
 
 ---
@@ -2097,6 +2182,7 @@ Format: [MADR 3.0](https://adr.github.io/madr/) (Markdown Any Decision Record). 
 | # | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-argon2id-password-hashing.md) | Argon2id for password and token hashing | Accepted | 2026-04-18 |
+| [0002](0002-translation-state-machine.md) | Translation state machine (5 states) | Accepted | 2026-04-19 |
 
 ## Numbering
 
