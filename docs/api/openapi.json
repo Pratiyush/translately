@@ -7,11 +7,17 @@
     "name" : "auth",
     "description" : "Email + password authentication flow"
   }, {
+    "name" : "keys",
+    "description" : "Translation-key lifecycle"
+  }, {
     "name" : "members",
     "description" : "Organization membership"
   }, {
     "name" : "meta",
     "description" : "Service metadata"
+  }, {
+    "name" : "namespaces",
+    "description" : "Key namespace lifecycle"
   }, {
     "name" : "organizations",
     "description" : "Organization lifecycle"
@@ -27,6 +33,34 @@
       "CreateBody" : {
         "type" : "object",
         "properties" : {
+          "keyName" : {
+            "type" : [ "string", "null" ]
+          },
+          "namespaceSlug" : {
+            "type" : [ "string", "null" ]
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "CreateBody1" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "slug" : {
+            "type" : [ "string", "null" ]
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "CreateBody2" : {
+        "type" : "object",
+        "properties" : {
           "name" : {
             "type" : [ "string", "null" ]
           },
@@ -35,7 +69,7 @@
           }
         }
       },
-      "CreateBody1" : {
+      "CreateBody3" : {
         "type" : "object",
         "properties" : {
           "name" : {
@@ -174,10 +208,30 @@
           }
         }
       },
+      "TranslationBody" : {
+        "type" : "object",
+        "properties" : {
+          "value" : {
+            "type" : [ "string", "null" ]
+          },
+          "state" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
       "UpdateBody" : {
         "type" : "object",
         "properties" : {
-          "role" : {
+          "keyName" : {
+            "type" : [ "string", "null" ]
+          },
+          "namespaceSlug" : {
+            "type" : [ "string", "null" ]
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "state" : {
             "type" : [ "string", "null" ]
           }
         }
@@ -185,12 +239,20 @@
       "UpdateBody1" : {
         "type" : "object",
         "properties" : {
-          "name" : {
+          "role" : {
             "type" : [ "string", "null" ]
           }
         }
       },
       "UpdateBody2" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "UpdateBody3" : {
         "type" : "object",
         "properties" : {
           "name" : {
@@ -425,7 +487,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateBody"
+                "$ref" : "#/components/schemas/CreateBody2"
               }
             }
           },
@@ -469,7 +531,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/UpdateBody1"
+                "$ref" : "#/components/schemas/UpdateBody2"
               }
             }
           },
@@ -580,7 +642,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/UpdateBody"
+                "$ref" : "#/components/schemas/UpdateBody1"
               }
             }
           },
@@ -695,7 +757,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateBody1"
+                "$ref" : "#/components/schemas/CreateBody3"
               }
             }
           },
@@ -749,7 +811,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/UpdateBody2"
+                "$ref" : "#/components/schemas/UpdateBody3"
               }
             }
           },
@@ -803,6 +865,417 @@
           },
           "404" : {
             "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/keys" : {
+      "get" : {
+        "summary" : "List keys in the project.",
+        "tags" : [ "keys" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        }, {
+          "name" : "namespace",
+          "in" : "query",
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Listing returned."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "post" : {
+        "summary" : "Create a key inside a namespace.",
+        "tags" : [ "keys" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Key created."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Project / namespace not found or caller is not a member."
+          },
+          "409" : {
+            "description" : "Key name already exists in the namespace."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/keys/{keyId}" : {
+      "patch" : {
+        "summary" : "Rename, reclassify, or re-state a key.",
+        "tags" : [ "keys" ],
+        "parameters" : [ {
+          "name" : "keyId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Updated."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "get" : {
+        "summary" : "Fetch one key with its translations.",
+        "tags" : [ "keys" ],
+        "parameters" : [ {
+          "name" : "keyId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Found."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "delete" : {
+        "summary" : "Soft-delete a key. Idempotent.",
+        "tags" : [ "keys" ],
+        "parameters" : [ {
+          "name" : "keyId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Deleted."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/keys/{keyId}/translations/{languageTag}" : {
+      "put" : {
+        "summary" : "Upsert one translation cell for a key.",
+        "tags" : [ "keys" ],
+        "parameters" : [ {
+          "name" : "keyId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "languageTag",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TranslationBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Upserted."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/namespaces" : {
+      "get" : {
+        "summary" : "List namespaces in the project.",
+        "tags" : [ "namespaces" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Listing returned."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      },
+      "post" : {
+        "summary" : "Create a namespace in the project.",
+        "tags" : [ "namespaces" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateBody1"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Namespace created."
+          },
+          "400" : {
+            "description" : "Validation failed."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Project not found or caller is not a member."
+          },
+          "409" : {
+            "description" : "Slug already in use in this project."
           },
           "403" : {
             "description" : "Not Allowed"

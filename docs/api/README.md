@@ -20,6 +20,7 @@ Per [CLAUDE.md rule #10](https://github.com/Pratiyush/translately/blob/master/CL
 - [Versioning](versioning.md) — URL-path versioning, deprecation policy, breaking-change rule.
 - [Authentication](auth.md) — JWT vs. PAT vs. API key, bearer-credential split, refresh rotation.
 - [Organizations, projects, members](organizations-and-projects.md) — self-serve org creation, project CRUD inside an org, role-change + remove for members.
+- [Keys, namespaces, translations](keys-and-namespaces.md) — project-scoped key CRUD, namespaces, per-language translation upsert.
 
 ## Conventions (mirror of [`.kiro/steering/api-conventions.md`](https://github.com/Pratiyush/translately/blob/master/.kiro/steering/api-conventions.md))
 
