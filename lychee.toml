@@ -31,6 +31,12 @@ exclude = [
 
     # docs bundle ZIP — built inside the pages.yml workflow, not committed
     'downloads/translately-docs\.zip$',
+
+    # Local dev URLs — walkthroughs point at the docker-compose services
+    # (backend, webapp, Mailpit, MinIO console, MinIO API) that only exist
+    # on the reader's laptop.
+    '^https?://localhost(:\d+)?(/|$)',
+    '^https?://127\.0\.0\.1(:\d+)?(/|$)',
 ]
 
 # Accept common redirect status codes so 302 login walls don't trip the checker
