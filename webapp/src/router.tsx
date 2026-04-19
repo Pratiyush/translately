@@ -5,6 +5,7 @@ import { DashboardRoute } from '@/components/routes/DashboardRoute';
 import { NotFoundRoute } from '@/components/routes/NotFoundRoute';
 import { OrgDetailRoute } from '@/components/routes/OrgDetailRoute';
 import { OrgsRoute } from '@/components/routes/OrgsRoute';
+import { ProjectDetailRoute } from '@/components/routes/ProjectDetailRoute';
 import { ProjectsRoute } from '@/components/routes/ProjectsRoute';
 import { ForgotPasswordRoute } from '@/components/routes/auth/ForgotPasswordRoute';
 import { ResetPasswordRoute } from '@/components/routes/auth/ResetPasswordRoute';
@@ -48,6 +49,7 @@ export function AppRoutes() {
         <Route index element={<DashboardRoute />} />
         <Route path="orgs" element={<OrgsRoute />} />
         <Route path="orgs/:orgSlug" element={<OrgDetailRoute />} />
+        <Route path="orgs/:orgSlug/projects/:projectSlug" element={<ProjectDetailRoute />} />
         <Route path="projects" element={<ProjectsRoute />} />
         <Route path="*" element={<NotFoundRoute />} />
       </Route>

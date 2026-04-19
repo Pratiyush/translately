@@ -78,20 +78,25 @@ function ActiveOrgProjects({ orgSlug }: { orgSlug: string }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2" data-testid="projects-list">
       {projects.map((p) => (
-        <ProjectListItem key={p.id} project={p} />
+        <ProjectListItem key={p.id} project={p} orgSlug={orgSlug} />
       ))}
     </ul>
   );
 }
 
-function ProjectListItem({ project }: { project: Project }) {
+function ProjectListItem({ project, orgSlug }: { project: Project; orgSlug: string }) {
   return (
-    <li className="rounded-lg border border-border bg-card p-4" data-testid={`project-item-${project.slug}`}>
-      <h3 className="truncate text-base font-semibold">{project.name}</h3>
-      <p className="mt-1 truncate font-mono text-xs text-muted-foreground">/{project.slug}</p>
-      {project.description ? (
-        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-      ) : null}
+    <li className="rounded-lg border border-border bg-card" data-testid={`project-item-${project.slug}`}>
+      <Link
+        to={`/orgs/${orgSlug}/projects/${project.slug}`}
+        className="block rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-accent"
+      >
+        <h3 className="truncate text-base font-semibold">{project.name}</h3>
+        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">/{project.slug}</p>
+        {project.description ? (
+          <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{project.description}</p>
+        ) : null}
+      </Link>
     </li>
   );
 }
