@@ -255,7 +255,18 @@ Hot-path indexes added in V3:
 - `idx_translations_key`, `idx_translations_state` — per-key fan-out + state filter.
 - `idx_key_activity_key`, `idx_key_activity_created` — the per-key timeline renders newest-first.
 
-The state-machine rationale lives in [ADR 0002](decisions/0002-translation-state-machine.md). The FTS + trigram index on `key_name` and `translations.value` is a separate concern wired in T206 (#47), not here.
+The state-machine rationale lives in [ADR 0002](decisions/0002-translation-state-machine.md).
+
+### V4 — search index layer
+
+[`V4__keys_fts_trigram.sql`](https://github.com/Pratiyush/translately/blob/master/backend/data/src/main/resources/db/migration/V4__keys_fts_trigram.sql) layers the search infrastructure on top of V3. It's index-only — no new tables, no data model change:
+
+- Enables `CREATE EXTENSION pg_trgm` (ships with Postgres 16 core).
+- Adds a generated `keys.search_vector` column of type `tsvector`. Populated from `key_name` (both as-is and with `[._-]+` runs replaced by spaces so identifier-style names tokenise segment-by-segment) plus `description`. `GENERATED ALWAYS ... STORED` keeps it in lock-step with its source columns without a trigger.
+- `idx_keys_search_vector` — GIN index on the generated vector, powers the primary FTS path.
+- `idx_translations_value_trgm` — GIN index with `gin_trgm_ops` on `translations.value`, powers the trigram fallback for fuzzy substring search over translation bodies.
+
+The `'simple'` text-search configuration gives up English-aware stemming on purpose — Translately is multilingual and callers search for identifier-like strings where stemming loses precision. A future migration can introduce a per-column language-specific configuration if the UX calls for it. See [ADR 0003](decisions/0003-postgres-fts-over-elasticsearch.md) and the [search architecture page](search.md) for the full rationale.
 
 ## Future migrations
 

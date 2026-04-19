@@ -18,6 +18,7 @@ Format: [MADR 3.0](https://adr.github.io/madr/) (Markdown Any Decision Record). 
 |---|---|---|---|
 | [0001](0001-argon2id-password-hashing.md) | Argon2id for password and token hashing | Accepted | 2026-04-18 |
 | [0002](0002-translation-state-machine.md) | Translation state machine (5 states) | Accepted | 2026-04-19 |
+| [0003](0003-postgres-fts-over-elasticsearch.md) | Postgres FTS over Elasticsearch for v1 | Accepted | 2026-04-19 |
 
 ## Numbering
 

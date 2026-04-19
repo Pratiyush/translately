@@ -33,6 +33,7 @@ The canonical LLM-ingestible corpus for Translately's documentation, generated f
 - [Authentication](https://pratiyush.github.io/translately/architecture/auth/): JWT issuer + rotation
 - [Authorization](https://pratiyush.github.io/translately/architecture/authorization/): Scopes + role mapping
 - [Crypto](https://pratiyush.github.io/translately/architecture/crypto/): Envelope encryption for BYOK secrets
+- [Search](https://pratiyush.github.io/translately/architecture/search/): Postgres FTS + trigram over keys and translations
 - [Webapp](https://pratiyush.github.io/translately/architecture/webapp/): SPA stack + state model
 - [CI pipelines](https://pratiyush.github.io/translately/architecture/ci/): Six GitHub Actions workflows + branch-protection gates + release pipeline
 - [ICU validation](https://pratiyush.github.io/translately/architecture/icu-validation/): MessageFormat parse/validate contract for translation cells
