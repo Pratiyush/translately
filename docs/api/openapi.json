@@ -7,6 +7,12 @@
     "name" : "auth",
     "description" : "Email + password authentication flow"
   }, {
+    "name" : "exports",
+    "description" : "JSON translation export"
+  }, {
+    "name" : "imports",
+    "description" : "JSON translation import"
+  }, {
     "name" : "keys",
     "description" : "Translation-key lifecycle"
   }, {
@@ -90,6 +96,23 @@
         "type" : "object",
         "properties" : {
           "email" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "ImportBody" : {
+        "type" : "object",
+        "properties" : {
+          "languageTag" : {
+            "type" : [ "string", "null" ]
+          },
+          "namespaceSlug" : {
+            "type" : [ "string", "null" ]
+          },
+          "mode" : {
+            "type" : [ "string", "null" ]
+          },
+          "body" : {
             "type" : [ "string", "null" ]
           }
         }
@@ -865,6 +888,130 @@
           },
           "404" : {
             "description" : "Not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/exports/json" : {
+      "get" : {
+        "summary" : "Export i18next JSON translations for one language tag.",
+        "tags" : [ "exports" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "languageTag",
+          "in" : "query",
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        }, {
+          "name" : "minState",
+          "in" : "query",
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        }, {
+          "name" : "namespaceSlug",
+          "in" : "query",
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        }, {
+          "name" : "shape",
+          "in" : "query",
+          "schema" : {
+            "type" : "string",
+            "default" : "FLAT"
+          },
+          "required" : true
+        }, {
+          "name" : "tags",
+          "in" : "query",
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Export generated. Body is the JSON file."
+          },
+          "400" : {
+            "description" : "Validation failed (missing language tag, bad shape, bad state)."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Project not found or caller is not a member."
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/imports/json" : {
+      "post" : {
+        "summary" : "Import i18next flat/nested JSON translations into a project for one language.",
+        "tags" : [ "imports" ],
+        "parameters" : [ {
+          "name" : "orgSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ImportBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Import finished. Summary in body."
+          },
+          "400" : {
+            "description" : "Validation failed — bad JSON, unsupported type, missing language tag."
+          },
+          "401" : {
+            "description" : "Not authenticated."
+          },
+          "404" : {
+            "description" : "Project / language not found or caller is not a member."
           },
           "403" : {
             "description" : "Not Allowed"

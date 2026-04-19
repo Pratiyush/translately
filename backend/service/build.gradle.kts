@@ -23,4 +23,10 @@ dependencies {
 
     implementation(libs.icu4j)
     implementation(libs.quarkus.redis.client)
+
+    // Jackson for the i18next JSON importer + exporter (T301 + T302).
+    // `jackson-bom` pins all transitive versions to the repo-wide 2.18.1
+    // so bumps cascade everywhere in one place.
+    implementation(platform(libs.jackson.bom))
+    implementation(libs.jackson.module.kotlin)
 }

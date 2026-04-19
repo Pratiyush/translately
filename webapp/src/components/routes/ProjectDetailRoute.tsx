@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, FolderKanban, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, FolderKanban, Plus, Trash2, Upload } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useParams } from 'react-router-dom';
@@ -30,6 +30,8 @@ import {
   type TranslationState,
 } from '@/lib/api/keys';
 import { useOrgProjects } from '@/lib/api/orgs';
+import { ExportModal } from '@/components/imports/ExportModal';
+import { ImportWizard } from '@/components/imports/ImportWizard';
 import { t } from '@/i18n';
 
 type Tab = 'keys' | 'namespaces' | 'settings';
@@ -145,6 +147,8 @@ function TabSwitcher({ active, onChange }: { active: Tab; onChange: (tab: Tab) =
 function KeysPanel({ orgSlug, projectSlug }: { orgSlug: string; projectSlug: string }) {
   const [nsFilter, setNsFilter] = React.useState<string>('');
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [exportOpen, setExportOpen] = React.useState(false);
   const namespaces = useNamespaces({ orgSlug, projectSlug });
   const keys = useKeys({ orgSlug, projectSlug, namespaceSlug: nsFilter || null });
 
@@ -152,10 +156,30 @@ function KeysPanel({ orgSlug, projectSlug }: { orgSlug: string; projectSlug: str
     <div role="tabpanel" data-testid="project-panel-keys" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <NamespaceFilter value={nsFilter} onChange={setNsFilter} options={namespaces.data ?? []} />
-        <Button type="button" onClick={() => setCreateOpen(true)} data-testid="keys-create-button">
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          {t('route.projectDetail.keys.create')}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+            data-testid="keys-import-button"
+          >
+            <Upload className="h-4 w-4" aria-hidden="true" />
+            {t('route.projectDetail.keys.import')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setExportOpen(true)}
+            data-testid="keys-export-button"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            {t('route.projectDetail.keys.export')}
+          </Button>
+          <Button type="button" onClick={() => setCreateOpen(true)} data-testid="keys-create-button">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t('route.projectDetail.keys.create')}
+          </Button>
+        </div>
       </div>
       <KeysTable orgSlug={orgSlug} projectSlug={projectSlug} keys={keys} />
       <CreateKeyDialog
@@ -164,6 +188,19 @@ function KeysPanel({ orgSlug, projectSlug }: { orgSlug: string; projectSlug: str
         orgSlug={orgSlug}
         projectSlug={projectSlug}
         namespaces={namespaces.data ?? []}
+      />
+      <ImportWizard
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        orgSlug={orgSlug}
+        projectSlug={projectSlug}
+        defaultNamespaceSlug={nsFilter || 'default'}
+      />
+      <ExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        orgSlug={orgSlug}
+        projectSlug={projectSlug}
       />
     </div>
   );

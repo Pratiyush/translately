@@ -985,6 +985,146 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/exports/json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export i18next JSON translations for one language tag. */
+        get: {
+            parameters: {
+                query: {
+                    languageTag?: string | null;
+                    minState?: string | null;
+                    namespaceSlug?: string | null;
+                    shape: string;
+                    tags?: string | null;
+                };
+                header?: never;
+                path: {
+                    orgSlug: string;
+                    projectSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Export generated. Body is the JSON file. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed (missing language tag, bad shape, bad state). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not authenticated. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Allowed */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Project not found or caller is not a member. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/imports/json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import i18next flat/nested JSON translations into a project for one language. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    orgSlug: string;
+                    projectSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImportBody"];
+                };
+            };
+            responses: {
+                /** @description Import finished. Summary in body. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed — bad JSON, unsupported type, missing language tag. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not authenticated. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Allowed */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Project / language not found or caller is not a member. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{orgSlug}/projects/{projectSlug}/keys": {
         parameters: {
             query?: never;
@@ -1799,6 +1939,12 @@ export interface components {
         };
         ForgotPasswordRequest: {
             email?: string | null;
+        };
+        ImportBody: {
+            languageTag?: string | null;
+            namespaceSlug?: string | null;
+            mode?: string | null;
+            body?: string | null;
         };
         Index: {
             name: string;
