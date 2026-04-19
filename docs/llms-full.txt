@@ -3390,6 +3390,12 @@ First shipped in [v0.1.0](../../CHANGELOG.md) under T118 (orgs UI) + T119 (proje
 title: Screenshots
 parent: Product
 nav_order: 99
+# Override the site-wide `permalink: pretty`. Without this, the page's
+# default URL would be `/product/screenshots/` — the exact same path as
+# the `docs/product/screenshots/` PNG directory, which wins the collision
+# and leaves the page unpublished. Use `.html` instead so the two
+# siblings don't fight for the same URL.
+permalink: /product/screenshots.html
 ---
 
 # Screenshots
