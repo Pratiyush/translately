@@ -36,6 +36,19 @@ Kiro steering files under [.kiro/steering/](.kiro/steering/) are authoritative f
     Doc-missing PRs are blocked from merge. If a ticket slipped docs in-flight, open a `docs(docs): ...` follow-up in the same milestone before the phase-tag goes out. By v0.3.0 (MVP end) every shipped feature must be fully documented; by v1.0.0 the entire `docs/` tree is the canonical product source-of-truth.
 11. **Repo topics + per-issue labels kept curated.** The GitHub repo's Topics list (set via `gh api repos/.../topics`) drives discoverability — the canonical list lives in [`.kiro/steering/contributing-rules.md#repository-metadata`](.kiro/steering/contributing-rules.md#repository-metadata). Review it at every signed tag and add a topic when a new headline feature ships (e.g. `react` when the webapp goes live, `openapi` when the spec is published). **Every issue** carries `type:*`, `scope:*`, `est:*`, phase-milestone, and `mvp`/`post-mvp`/`deferred` labels before leaving NEW. A PR that creates a new issue without the full label set is blocked at review.
 
+## Behavioral rules (how to think, not what to build)
+
+These govern *style of work*. Trivial tasks can skip them; anything non-obvious must pass all six before the first edit.
+
+1. **Think before coding.** State assumptions out loud. When two interpretations exist, surface both — don't pick silently. When the scenario is ambiguous, stop and ask.
+2. **Simplicity first.** Minimum code that solves the stated problem. No speculative flexibility, no defensive checks for scenarios the primary fix already closes. If a senior reviewer would call the diff overcomplicated, simplify before sending.
+3. **Surgical diffs.** Every line must trace to the current request. No adjacent-code "improvements," no reformatting, no cleaning up pre-existing mess. Match existing style even when it's not yours. When your changes orphan code, remove only the orphans *your* changes created.
+4. **Goal-driven loops.** Translate tasks into verifiable checks ("`curl -I /x` returns 200," "test Y passes"). Run the before-state check before editing so the delta is measurable. Never "retry until CI tells me what's wrong" — read the pipeline end-to-end first.
+5. **Flag decisions, not just actions.** When picking between approaches with different failure modes or externally-visible consequences (URL changes, schema migrations, API surface shifts), say the tradeoff out loud before picking.
+6. **Terse over comprehensive.** PR bodies, commit messages, CHANGELOG entries — the second reader beats the first. Every kept sentence earns its place; cut in half when in doubt.
+
+These guidelines are working if: clarifying questions come *before* mistakes, diffs shrink, and rewrites-for-overcomplication disappear. Reference: Karpathy behavioral guidelines — see repo discussion 2026-04-19.
+
 ## Stack cheat-sheet
 
 | Layer | Choice |
