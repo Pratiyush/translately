@@ -35,6 +35,7 @@ The canonical LLM-ingestible corpus for Translately's documentation, generated f
 - [Crypto](https://pratiyush.github.io/translately/architecture/crypto/): Envelope encryption for BYOK secrets
 - [Webapp](https://pratiyush.github.io/translately/architecture/webapp/): SPA stack + state model
 - [CI pipelines](https://pratiyush.github.io/translately/architecture/ci/): Six GitHub Actions workflows + branch-protection gates + release pipeline
+- [ICU validation](https://pratiyush.github.io/translately/architecture/icu-validation/): MessageFormat parse/validate contract for translation cells
 
 ## Self-hosting
 
