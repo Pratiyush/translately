@@ -76,7 +76,7 @@ quarkus-mailer                       = { module = "io.quarkus:quarkus-mailer" }
 quarkus-qute                         = { module = "io.quarkus:quarkus-qute" }
 
 # Object storage (AWS S3 via Quarkiverse)
-quarkus-amazon-s3                    = { module = "io.quarkiverse.amazonservices:quarkus-amazon-s3", version = "2.11.0" }
+quarkus-amazon-s3                    = { module = "io.quarkiverse.amazonservices:quarkus-amazon-s3", version = "3.16.0" }
 awssdk-bom                           = { module = "software.amazon.awssdk:bom", version.ref = "awssdk-bom" }
 
 # Test extensions (Quarkus-aware)
