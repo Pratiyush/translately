@@ -26,7 +26,7 @@ testcontainers = "1.20.4"
 argon2 = "2.11"
 awssdk-bom = "2.29.20"
 icu4j = "76.1"
-jackson-bom = "2.18.1"
+jackson-bom = "2.21.2"
 
 # Reporting
 jacoco = "0.8.12"
