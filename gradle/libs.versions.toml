@@ -23,7 +23,7 @@ mockk = "1.13.13"
 testcontainers = "1.20.4"
 
 # Libraries (non-Quarkus)
-argon2 = "2.11"
+argon2 = "2.12"
 awssdk-bom = "2.29.20"
 icu4j = "76.1"
 jackson-bom = "2.21.2"
