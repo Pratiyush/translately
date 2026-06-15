@@ -128,7 +128,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Backend image (JVM)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: infra/docker/backend.Dockerfile
@@ -147,7 +147,7 @@ jobs:
 
       - name: Webapp image
         if: hashFiles('webapp/package.json') != ''
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: infra/docker/webapp.Dockerfile
