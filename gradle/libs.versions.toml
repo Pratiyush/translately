@@ -25,7 +25,7 @@ testcontainers = "1.20.4"
 # Libraries (non-Quarkus)
 argon2 = "2.11"
 awssdk-bom = "2.29.20"
-icu4j = "76.1"
+icu4j = "78.3"
 jackson-bom = "2.21.2"
 
 # Reporting
