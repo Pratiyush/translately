@@ -23,7 +23,7 @@ COPY webapp ./webapp
 RUN pnpm --filter @translately/webapp build
 
 # ---------- runtime stage ----------
-FROM nginx:1.31-alpine AS runtime
+FROM nginx:1.31.2-alpine AS runtime
 
 COPY infra/docker/nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /workspace/webapp/dist /usr/share/nginx/html
